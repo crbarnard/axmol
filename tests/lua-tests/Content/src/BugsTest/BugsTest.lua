@@ -217,7 +217,7 @@ local function BugTest624()
 			scheduler:unscheduleScriptEntry(BugTest624_entry)
 		end
     end
-    pLayer:registerScriptHandler(BugTest624_OnEnterOrExit)
+    pLayer:setLifecycleCallback(BugTest624_OnEnterOrExit)
 
     return pLayer
 end
@@ -249,7 +249,7 @@ function BugTest624_2()
 			scheduler:unscheduleScriptEntry(BugTest624_2_entry)
 		end
     end
-    pLayer:registerScriptHandler(BugTest624_2_OnEnterOrExit)
+    pLayer:setLifecycleCallback(BugTest624_2_OnEnterOrExit)
 end
 
 --BugTest886
@@ -322,16 +322,15 @@ local function BugTest914()
     layer:addChild(menu)
 
     -- handling touch events
-    local function onTouchMoved(touches, event)
-		local count = #(touches)
-		print("Number of touches: ",count)
+    local function onPointerMove(event)
+		print("Pointer event received: ", event:getPointerId())
     end
-    local function onTouchBegan(touches, event)
-		onTouchMoved(touches, event)
+    local function onTouchBegan(event)
+		onPointerMove(event)
     end
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(onTouchBegan,ax.Handler.EVENT_TOUCHES_BEGAN )
-    listener:registerScriptHandler(onTouchMoved,ax.Handler.EVENT_TOUCHES_MOVED )
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerDown = onTouchBegan
+    listener.onPointerMove = onPointerMove
 
     local eventDispatcher = layer:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, layer)
@@ -385,7 +384,7 @@ local function BugTest1159()
         end
     end
 
-    pLayer:registerScriptHandler(onNodeEvent)
+    pLayer:setLifecycleCallback(onNodeEvent)
 
 	return pLayer
 end
@@ -433,36 +432,36 @@ local function BugTest1174()
         -----
         c|d
         ]]--
-        local ax = math.random() * -5000
-        local ay = math.random() * 5000
+        local xA = math.random() * -5000
+        local yA = math.random() * 5000
         --[[
         a|b
         -----
         c|D
         ]]--
-        local dx = math.random() * 5000
-        local dy = math.random() * -5000
+        local xD = math.random() * 5000
+        local yD = math.random() * -5000
 
         --[[
         a|B
         -----
         c|d
         ]]--
-        local bx = math.random() * 5000
-        local by = math.random() * 5000
+        local xB = math.random() * 5000
+        local yB = math.random() * 5000
 
         --[[
         a|b
         -----
         C|d
         ]]--
-        local cx = math.random() * -5000
-        local cy = math.random() * -5000
+        local xC = math.random() * -5000
+        local yC = math.random() * -5000
 
-        A = ax.p(ax,ay)
-        B = ax.p(bx,by)
-        C = ax.p(cx,cy)
-        D = ax.p(dx,dy)
+        A = ax.p(xA, yA)
+        B = ax.p(xB, yB)
+        C = ax.p(xC, yC)
+        D = ax.p(xD, yD)
 
         bRet,s,t = ax.pIsLineIntersect( A, D, B, C, s, t)
         if true == bRet then
@@ -503,31 +502,31 @@ local function BugTest1174()
         -- A | b
         -- -----
         -- c | d
-        local ax = math.random() * -500
-        local ay = math.random() * 500
-        p1 = ax.p(ax,ay)
+        local xA = math.random() * -500
+        local yA = math.random() * 500
+        p1 = ax.p(xA, yA)
         -- a | b
         -- -----
         -- c | D
-        local dx = math.random() * 500
-        local dy = math.random() * -500
-        p2 = ax.p(dx,dy)
+        local xD = math.random() * 500
+        local yD = math.random() * -500
+        p2 = ax.p(xD, yD)
 
         -------
 
-        local y = ay - ((ay - dy) / 2.0)
+        local y = yA - ((yA - yD) / 2.0)
 
         -- a | b
         -- -----
         -- C | d
-        local cx = math.random() * -500
-        p3 = ax.p(cx,y)
+        local xC = math.random() * -500
+        p3 = ax.p(xC, y)
 
         -- a | B
         -- -----
         -- c | d
-        local bx = math.random() * 500
-        p4 = ax.p(bx,y)
+        local xB = math.random() * 500
+        p4 = ax.p(xB, y)
 
         s = 0.0
         t = 0.0
@@ -620,10 +619,14 @@ local function BugsTestMainLayer()
     -- handling touch events
     local ptBeginPos = {x = 0, y = 0}
     local ptCurPos  = {x = 0, y = 0}
+    local dragging = false
 
     -- handling touch events
-    local function onTouchMoved(touches, event)
-        local touchLocation = touches[1]:getLocation()
+    local function onPointerMove(event)
+        if not dragging then
+            return
+        end
+        local touchLocation = event:getWorldPoint()
         local nMoveY = touchLocation.y - ptBeginPos.y
         local curPosx, curPosy = pItemMenu:getPosition()
         local nextPosy = curPosy + nMoveY
@@ -641,12 +644,19 @@ local function BugsTestMainLayer()
         ptBeginPos = touchLocation
         ptCurPos = {x = curPosx, y = nextPosy}
     end
-    local function onTouchBegan(touches, event)
-        ptBeginPos = touches[1]:getLocation()
+    local function onTouchBegan(event)
+        ptBeginPos = event:getWorldPoint()
+        dragging = true
+        return true
     end
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(onTouchBegan,ax.Handler.EVENT_TOUCHES_BEGAN )
-    listener:registerScriptHandler(onTouchMoved,ax.Handler.EVENT_TOUCHES_MOVED )
+    local function onTouchEnded()
+        dragging = false
+    end
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerDown = onTouchBegan
+    listener.onPointerMove = onPointerMove
+    listener.onPointerUp = onTouchEnded
+    listener.onPointerCancel = onTouchEnded
 
     local eventDispatcher = ret:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, ret)

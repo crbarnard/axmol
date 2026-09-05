@@ -1,0 +1,262 @@
+/****************************************************************************
+Copyright (c) 2008-2010 Ricardo Quesada
+Copyright (c) 2010-2012 cocos2d-x.org
+Copyright (c) 2011      Zynga Inc.
+Copyright (c) 2013-2016 Chukong Technologies Inc.
+Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
+Copyright (c) 2019-present Axmol Engine contributors (see AUTHORS.md).
+
+https://axmol.dev/
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+****************************************************************************/
+
+#pragma once
+
+#include <string>
+#include "axmol/scene/Node.h"
+
+namespace ax
+{
+
+class Director;
+class Camera;
+class BaseLight;
+class Renderer;
+class CustomEventListener;
+class CustomEvent;
+#if defined(AX_ENABLE_PHYSICS_2D)
+class PhysicsWorld2D;
+#endif
+#if defined(AX_ENABLE_PHYSICS_3D)
+class PhysicsWorld3D;
+#endif
+#if defined(AX_ENABLE_NAVMESH)
+class NavMesh;
+#endif
+
+/**
+ * @addtogroup _2d
+ * @{
+ */
+
+class AX_DLL Scene : public Node
+{
+public:
+    /** Creates a new Scene object.
+     *
+     * @return An autoreleased Scene object.
+     */
+    static Scene* create();
+
+    /** Creates a new Scene object with a predefined size.
+     *
+     * @param size The predefined size of scene.
+     * @return An autoreleased Scene object.
+     */
+    static Scene* createWithSize(const Vec2& size);
+
+    using Node::addChild;
+    std::string getDescription() const override;
+
+    /** Get all cameras.
+     *
+     * @return The vector of all cameras, ordered by camera depth.
+     */
+    const std::vector<Camera*>& getCameras();
+
+    /** Get the default camera.
+     * @return The default camera of scene.
+     */
+    Camera* getDefaultCamera() const { return _defaultCamera; }
+
+    /**
+     * @brief Returns the default camera mode for this scene.
+     * Override in subclasses to control how the default camera is initialized.
+     */
+    virtual CameraMode getDefaultCameraMode() const { return CameraMode::Classic; }
+
+    /** Get lights.
+     * @return The vector of lights.
+     */
+    const std::vector<BaseLight*>& getLights() const { return _lights; }
+
+    void visit(const SceneRenderState& state, const Mat4& parentTransform, uint32_t parentFlags) override;
+
+    /** override function */
+    void removeAllChildren() override;
+
+    Scene();
+    virtual ~Scene();
+
+    bool init() override;
+    bool initWithSize(const Vec2& size);
+
+    void setCameraOrderDirty();
+
+    /**
+     * @brief Set a camera to be used for debug drawing (physics, navigation, etc.).
+     * @param camera The camera to use for debug rendering.
+     */
+    void setDebugCamera(Camera* camera);
+
+    // fixedStep configuration
+    /**
+     * @brief Set the fixed time step used for physics and logic updates.
+     * @param fixedStep Duration of each fixed update step in seconds.
+     */
+    void setFixedDeltaTime(float fixedStep);
+
+    /**
+     * @brief Set the maximum delta time allowed per frame.
+     *        Prevents excessive accumulation when resuming from pause or lag.
+     * @param maxDt Maximum delta time in seconds.
+     */
+    void setMaxDeltaTime(float maxDt) { _maxDeltaTime = maxDt; }
+
+    /**
+     * @brief Set the maximum number of fixed update steps allowed per frame.
+     *        Acts as a safeguard against spiral-of-death scenarios.
+     * @param maxSteps Maximum fixed steps per frame.
+     */
+    void setMaxFixedStepsPerFrame(int maxSteps) { _maxFixedStepsPerFrame = maxSteps; }
+
+    /**
+     * @brief Set the global time scale multiplier.
+     *        Affects both dynamic and fixed time progression.
+     * @param scale Time scale factor (1.0 = normal speed).
+     */
+    void setTimeScale(float scale) { _timeScale = scale; }
+
+    /**
+     * @brief Enable or disable fixed update processing.
+     * @param enabled True to run fixed updates, false to disable.
+     */
+    void setFixedUpdateEnabled(bool enabled) { _fixedUpdateEnabled = enabled; }
+
+    /**
+     * @brief Check if fixed update is currently enabled.
+     * @return True if fixed update is enabled, false otherwise.
+     */
+    bool isFixedUpdateEnabled() const { return _fixedUpdateEnabled; }
+
+    // query interpolation alpha for rendering
+    float getPhysicsInterpolationAlpha() const { return _physicsInterpolationAlpha; }
+
+private:
+    void initDefaultCamera();
+
+protected:
+    void tick(float delta);
+    virtual void fixedUpdate(float delta);
+
+    void registerCamera(Camera* camera);
+    void unregisterCamera(Camera* camera);
+
+    friend class Director;
+    friend class Node;
+    friend class ProtectedNode;
+    friend class SpriteBatchNode;
+    friend class Camera;
+    friend class BaseLight;
+    friend class Renderer;
+    friend class SceneCompositor;
+
+    /* weak ref, default camera created by scene */
+    Camera* _defaultCamera{nullptr};
+
+    std::vector<Camera*> _cameras;  // weak refs
+    bool _cameraOrderDirty{true};
+
+    /**
+     * @brief Set a camera to be used for debug drawing (physics, navigation, etc.).
+     * @param camera The camera to use for debug rendering.
+     */
+    Camera* _debugCamera{nullptr};
+
+    bool _fixedUpdateEnabled{true};
+
+    std::vector<BaseLight*> _lights;
+
+    // fixed-step state
+    double _fixedAccumulator;
+    float _fixedDeltaTime{1.0f / 60.0f};  // default 60Hz
+    int _maxFixedStepsPerFrame{5};        // prevent spiral of death
+    float _timeScale{1.0f};
+    float _maxDeltaTime{0.25f};              // clamp dt to avoid huge jumps
+    float _physicsInterpolationAlpha{0.0f};  // 0..1 for render interpolation
+
+private:
+    AX_DISALLOW_COPY_AND_ASSIGN(Scene);
+
+#if (AX_ENABLE_PHYSICS_2D || defined(AX_ENABLE_PHYSICS_3D))
+public:
+#    if defined(AX_ENABLE_PHYSICS_2D)
+    /** Get the physics world of the scene.
+     * @return The physics world of the scene.
+     */
+    PhysicsWorld2D* getPhysicsWorld2D() const { return _physicsWorld2D; }
+#    endif
+
+#    if defined(AX_ENABLE_PHYSICS_3D)
+    /** Get the 3d physics world of the scene.
+     * @return The 3d physics world of the scene.
+     */
+    PhysicsWorld3D* getPhysicsWorld3D() { return _physicsWorld3D; }
+#    endif
+
+    /** Create a scene with physics.
+     * @return An autoreleased Scene object with physics.
+     */
+    static Scene* createWithPhysics();
+
+    bool initWithPhysics();
+    bool initPhysicsWorld();
+
+protected:
+#    if defined(AX_ENABLE_PHYSICS_2D)
+    PhysicsWorld2D* _physicsWorld2D = nullptr;
+#    endif
+
+#    if defined(AX_ENABLE_PHYSICS_3D)
+    PhysicsWorld3D* _physicsWorld3D = nullptr;
+#    endif
+#endif  // (defined(AX_ENABLE_PHYSICS_2D) || defined(AX_ENABLE_PHYSICS_3D))
+
+#if defined(AX_ENABLE_NAVMESH)
+public:
+    /** set navigation mesh */
+    void setNavMesh(NavMesh* navMesh);
+    /** get navigation mesh */
+    NavMesh* getNavMesh() const { return _navMesh; }
+
+protected:
+    NavMesh* _navMesh = nullptr;
+#endif
+
+#if (defined(AX_ENABLE_PHYSICS_2D) || defined(AX_ENABLE_PHYSICS_3D) || defined(AX_ENABLE_NAVMESH))
+public:
+    void stepPhysicsAndNavigation(float deltaTime);
+#endif
+};
+
+// end of _2d group
+/// @}
+
+}  // namespace ax

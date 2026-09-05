@@ -14,13 +14,14 @@ android {
     sourceSets.main {
         aidl.srcDir "../java/src"
         java.srcDirs = ['../java/src','../ControllerManualAdapter/src']
+        res.srcDir "../res"
         manifest.srcFile "AndroidManifest.xml"
     }
 
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }

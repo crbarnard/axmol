@@ -2,16 +2,18 @@
 
 #include "axmol/base/Director.h"
 #include "axmol/base/Data.h"
-#if !defined(__ANDROID__)
-#    include "axmol/platform/RenderViewImpl.h"
+#if defined(AX_PLATFORM_GLFW)
+#    include "axmol/platform/RenderView.h"
 #endif
 #include "axmol/rhi/Program.h"
 #include "axmol/rhi/ProgramState.h"
 #include "axmol/renderer/ProgramManager.h"
 #include "axmol/renderer/Shaders.h"
 #include "axmol/renderer/Renderer.h"
+#include "axmol/renderer/CustomCommand.h"
 #include "axmol/renderer/CallbackCommand.h"
-#include "axmol/rhi/DriverContext.h"
+#include "axmol/scene/Camera.h"
+#include "axmol/rhi/GraphicsCore.h"
 #include "axmol/rhi/Buffer.h"
 
 using namespace ax;
@@ -129,9 +131,9 @@ struct ImGui_ImplAxmol_Data
     // axmol spec data, TODO: new type: ImGui_ImplAxmol_Data
     std::chrono::steady_clock::time_point LastFrameTime{};
 
-    ImGuiImplAxmolUpdateFontsFn UpdateFontsFunc = nullptr;
-    void* UpdateFontsFuncUserData               = nullptr;
-    bool FontsDirty                             = false;
+    ImGuiImplAxmolRebuildFontsFn RebuildFontsFunc = nullptr;
+    void* RebuildFontsFuncUserData                = nullptr;
+    bool FontsDirty                               = false;
 
     ProgramInfoData ProgramInfo{};
     Mat4 Projection;
@@ -284,7 +286,7 @@ IMGUI_IMPL_API void ImGui_ImplAxmol_Init()
     bd->IndexBufferAllocator  = new BufferPoolAllocator(1 * 1024 * 1024, BufferType::INDEX, BufferUsage::DYNAMIC);
 
 #if (!defined(AX_GLES_PROFILE) || AX_GLES_PROFILE >= 300)
-    if (rhi::DriverContext::isOpenGL())
+    if (rhi::GraphicsCore::isOpenGL())
         io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field,
                                                                     // allowing for large meshes.
 #endif
@@ -335,8 +337,8 @@ IMGUI_IMPL_API void ImGui_ImplAxmol_NewFrame()
     if (bd->FontsDirty)
     {
         // since imgui-1.92.0, rebuild font atlas at here
-        if (bd->UpdateFontsFunc)
-            bd->UpdateFontsFunc(bd->UpdateFontsFuncUserData);
+        if (bd->RebuildFontsFunc)
+            bd->RebuildFontsFunc(bd->RebuildFontsFuncUserData);
 
         bd->FontsDirty = false;
     }
@@ -359,12 +361,14 @@ IMGUI_IMPL_API void ImGui_ImplAxmol_RenderDrawData(ImDrawData* draw_data)
 
     ImGui_ImplAxmol_SetupRenderState(renderer, draw_data, fb_width, fb_height);
 
+    auto drawCallback_ResetState = ImGui::GetPlatformIO().DrawCallback_ResetRenderState;
+
     // Will project scissor/clipping rectangles into framebuffer space
     ImVec2 clip_off   = draw_data->DisplayPos;        // (0,0) unless using multi-viewports
     ImVec2 clip_scale = draw_data->FramebufferScale;  // (1,1) unless using retina display which are often (2,2)
 
     // Render command lists
-    for (int n = 0; n < draw_data->CmdListsCount; n++)
+    for (int n = 0; n < draw_data->CmdLists.size(); n++)
     {
         const ImDrawList* cmd_list = draw_data->CmdLists[n];
 
@@ -389,7 +393,7 @@ IMGUI_IMPL_API void ImGui_ImplAxmol_RenderDrawData(ImDrawData* draw_data)
                 // User callback, registered via ImDrawList::AddCallback()
                 // (ImDrawCallback_ResetRenderState is a special callback value used by the user
                 // to request the renderer to reset render state.)
-                if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
+                if (pcmd->UserCallback == drawCallback_ResetState)
                     ImGui_ImplAxmol_SetupRenderState(renderer, draw_data, fb_width, fb_height);
                 else
                 {
@@ -409,17 +413,13 @@ IMGUI_IMPL_API void ImGui_ImplAxmol_RenderDrawData(ImDrawData* draw_data)
                 {
                     // Apply scissor/clipping rectangle
                     ImGui_ImplAxmol_PostCommand([=]() {
-                        if (rhi::DriverContext::isD3D12())
-                            renderer->setScissorRect(clip_rect.x, clip_rect.y, clip_rect.z - clip_rect.x,
-                                                     clip_rect.w - clip_rect.y);
-                        else
-                            renderer->setScissorRect(clip_rect.x, fb_height - clip_rect.w, clip_rect.z - clip_rect.x,
-                                                     clip_rect.w - clip_rect.y);
+                        renderer->setScissorRect(clip_rect.x, fb_height - clip_rect.w, clip_rect.z - clip_rect.x,
+                                                 clip_rect.w - clip_rect.y);
                     });
 
                     auto bd = ImGui_ImplAxmol_GetBackendData();
 
-                    if (typeid(*((Object*)pcmd->TexRef.GetTexID())) == typeid(Texture2D))
+                    if (dynamic_cast<Texture2D*>((Object*)pcmd->TexRef.GetTexID()))
                     {
                         auto tex = (Texture2D*)(uintptr_t)(pcmd->TexRef.GetTexID());
                         auto cmd = std::make_shared<CustomCommand>();
@@ -450,9 +450,12 @@ IMGUI_IMPL_API void ImGui_ImplAxmol_RenderDrawData(ImDrawData* draw_data)
                         const auto tr = node->getNodeToParentTransform();
                         node->setVisible(true);
                         node->setNodeToParentTransform(tr);
-                        const auto& proj =
-                            Director::getInstance()->getMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_PROJECTION);
-                        node->visit(Director::getInstance()->getRenderer(), proj.getInversed() * bd->Projection, 0);
+                        auto director = Director::getInstance();
+                        auto scene    = director->getRunningScene();
+                        auto camera   = scene ? scene->getDefaultCamera() : nullptr;
+                        const auto& proj = camera ? camera->getViewProjectionMatrix() : Mat4::identity;
+                        SceneRenderState renderState(director->getRenderer(), camera);
+                        node->visit(renderState, proj.getInversed() * bd->Projection, 0);
                         node->setVisible(false);
                     }
                 }
@@ -470,9 +473,9 @@ IMGUI_IMPL_API void ImGui_ImplAxmol_RenderPlatform()
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
 
-#if !defined(__ANDROID__)
+#if defined(AX_PLATFORM_GLFW)
         // restore context
-        if (rhi::DriverContext::isOpenGL())
+        if (rhi::GraphicsCore::isOpenGL())
         {
             GLFWwindow* prev_current_context = glfwGetCurrentContext();
             ImGui_ImplAxmol_PostCommand([=]() { ImGui_ImplAxmol_MakeCurrent(prev_current_context, nullptr); });
@@ -484,7 +487,7 @@ IMGUI_IMPL_API void ImGui_ImplAxmol_RenderPlatform()
 IMGUI_IMPL_API void ImGui_ImplAxmol_MakeCurrent(GLFWwindow* window, ImGuiViewport* viewport)
 {
 #if defined(GLFW_VERSION_MAJOR) && AX_ENABLE_GL
-    if (!rhi::DriverContext::isOpenGL())
+    if (!rhi::GraphicsCore::isOpenGL())
         return;
     glfwMakeContextCurrent(window);
     auto state = static_cast<gl::OpenGLState*>(glfwGetWindowUserPointer(window));
@@ -513,7 +516,7 @@ IMGUI_IMPL_API void ImGui_ImplAxmol_MakeCurrent(GLFWwindow* window, ImGuiViewpor
 IMGUI_IMPL_API void ImGui_ImplAxmol_OnDestroyWindow(GLFWwindow* window, ImGuiViewport* viewport)
 {
 #if defined(GLFW_VERSION_MAJOR) && AX_ENABLE_GL
-    if (!rhi::DriverContext::isOpenGL())
+    if (!rhi::GraphicsCore::isOpenGL())
         return;
     if (viewport->RendererUserData)
     {
@@ -551,7 +554,7 @@ IMGUI_IMPL_API bool ImGui_ImplAxmol_CreateDeviceObjects()
 
     auto pm = ProgramManager::getInstance();
 
-    bd->ProgramInfo.program = pm->loadProgram("custom/imgui_sprite_vs"sv, ax::positionTextureColor_frag);
+    bd->ProgramInfo.program = pm->loadProgram("custom/imgui_sprite_vs"sv, ax::positionTextureColor_fs);
 
     IM_ASSERT(bd->ProgramInfo.program);
 
@@ -561,9 +564,9 @@ IMGUI_IMPL_API bool ImGui_ImplAxmol_CreateDeviceObjects()
     auto& info      = bd->ProgramInfo;
     info.texture    = info.program->getUniformLocation(TEXTURE);
     info.projection = info.program->getUniformLocation(MVP_MATRIX);
-    info.position   = info.program->getVertexInputDesc(POSITION);
-    info.uv         = info.program->getVertexInputDesc(TEXCOORD);
-    info.color      = info.program->getVertexInputDesc(COLOR);
+    info.position   = info.program->getVertexInputDesc(VertexSemantic::POSITION);
+    info.uv         = info.program->getVertexInputDesc(VertexSemantic::TEXCOORD0);
+    info.color      = info.program->getVertexInputDesc(VertexSemantic::COLOR0);
     IM_ASSERT(bool(info.texture));
     IM_ASSERT(bool(info.projection));
     IM_ASSERT(!!info.position);
@@ -573,9 +576,9 @@ IMGUI_IMPL_API bool ImGui_ImplAxmol_CreateDeviceObjects()
 
     auto layoutDesc = axvlm->allocateVertexLayoutDesc();
     layoutDesc.startLayout(3);
-    layoutDesc.addAttrib("a_position", info.position, VertexFormat::FLOAT2, 0, false);
-    layoutDesc.addAttrib("a_texCoord", info.uv, VertexFormat::FLOAT2, offsetof(ImDrawVert, uv), false);
-    layoutDesc.addAttrib("a_color", info.color, VertexFormat::UBYTE4, offsetof(ImDrawVert, col), true);
+    layoutDesc.addAttrib(info.position, VertexElementType::FLOAT2, 0, false);
+    layoutDesc.addAttrib(info.uv, VertexElementType::FLOAT2, offsetof(ImDrawVert, uv), false);
+    layoutDesc.addAttrib(info.color, VertexElementType::UBYTE4, offsetof(ImDrawVert, col), true);
     layoutDesc.endLayout();
 
     Object::assign(info.layout, axvlm->getVertexLayout(std::forward<VertexLayoutDesc>(layoutDesc)));
@@ -597,11 +600,11 @@ IMGUI_IMPL_API void ImGui_ImplAxmol_DestroyDeviceObjects()
             ImGui_ImplAxmol_DestroyTexture(tex);
 }
 
-IMGUI_IMPL_API void ImGui_ImplAxmol_SetUpdateFontsFunc(ImGuiImplAxmolUpdateFontsFn func, void* userdata)
+IMGUI_IMPL_API void ImGui_ImplAxmol_SetRebuildFontsFunc(ImGuiImplAxmolRebuildFontsFn func, void* userdata)
 {
-    auto bd                     = ImGui_ImplAxmol_GetBackendData();
-    bd->UpdateFontsFunc         = func;
-    bd->UpdateFontsFuncUserData = userdata;
+    auto bd                      = ImGui_ImplAxmol_GetBackendData();
+    bd->RebuildFontsFunc         = func;
+    bd->RebuildFontsFuncUserData = userdata;
 }
 
 IMGUI_IMPL_API void ImGui_ImplAxmol_MarkFontsDirty()
@@ -637,14 +640,5 @@ static void ImGui_ImplAxmol_ShutdownMultiViewportSupport()
 {
     ImGui::DestroyPlatformWindows();
 }
-
-#if !defined(__ANDROID__)
-IMGUI_IMPL_API void ImGui_ImplAxmol_SetViewResolution(float width, float height)
-{
-    // Resize (expand) window
-    auto* view = (ax::RenderViewImpl*)ax::Director::getInstance()->getRenderView();
-    view->setWindowed(width, height);
-}
-#endif
 
 //-----------------------------------------------------------------------------

@@ -46,7 +46,7 @@ NS_AX_EXT_BEGIN
  * @{
  */
 
-class AX_EX_DLL ControlHuePicker : public Control
+class AX_EXT_API ControlHuePicker : public Control
 {
 public:
     static ControlHuePicker* create(Node* target, Vec2 pos);
@@ -62,8 +62,8 @@ public:
     void setEnabled(bool enabled) override;
 
     // overrides
-    bool onTouchBegan(Touch* touch, Event* pEvent) override;
-    void onTouchMoved(Touch* pTouch, Event* pEvent) override;
+    bool onPointerDown(PointerEvent* event) override;
+    void onPointerMove(PointerEvent* event) override;
 
 protected:
     void updateSliderPosition(Vec2 location);

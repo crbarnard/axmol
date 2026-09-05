@@ -1,8 +1,9 @@
-# fetch pkg by url or manifest.json path
+# fetch pkg by url or sources.json path
 param(
     $uri, # the pkg uri
-    $prefix, # the prefix to store
+    $prefix = $null, # the prefix to store
     $name = $null,
+    $folder = $null, # the hint for prefix + folder = install_dir
     $version = $null, # version hint
     $revision = $null, # revision hint
     [switch]$pull_branch
@@ -16,8 +17,8 @@ param(
 
 Set-Alias println Write-Host
 
-if (!$uri -or !$prefix) {
-    throw 'fetch.ps1: missing parameters'
+if (!$uri) {
+    throw 'fetch.ps1: missing `uri` parameters'
 }
 
 function download_file($uri, $out) {
@@ -38,7 +39,11 @@ if (!(Test-Path $cache_dir -PathType Container)) {
     mkdirs $cache_dir
 }
 
-function fetch_repo($url, $name, $dest, $ext) {
+if (!$prefix) {
+    $prefix = $cache_dir
+}
+
+function fetch($url, $name, $dest, $ext) {
     if ($ext -eq '.git') {
         git clone --progress $url $dest | Out-Host
     }
@@ -70,7 +75,7 @@ function fetch_repo($url, $name, $dest, $ext) {
                         }
                     }
                     catch {
-      
+
                     }
 
                     println "fetch.ps1: rename $original_lib_src to $dest failed, try after 1 seconds"
@@ -111,26 +116,28 @@ else {
 # simple match url/ssh schema
 if (!$url) {
     # fetch package from manifest config
-    $lib_src = Join-Path $prefix $name
-    $active_mirror_file = Join-Path $PSScriptRoot '.active-mirror'
-    if (Test-Path $active_mirror_file -PathType Leaf) {
-        $active_mirror = Get-Content $active_mirror_file
+    . (Join-Path $PSScriptRoot 'extensions.ps1')
+
+    $1k_env_file = Join-Path $PSScriptRoot '.env'
+    if (Test-Path $1k_env_file -PathType Leaf) {
+        $1k_env = ConvertFrom-Props (Get-Content $1k_env_file)
+        $active_mirror = $1k_env.active_mirror
     }
     else {
         $active_mirror = 'origin'
     }
-    $mirrors_conf = ConvertFrom-Json (Get-Content $(Join-Path $PSScriptRoot 'mirrors.json') -raw)
+    $sources_conf = ConvertFrom-Json (Get-Content $(Join-Path $PSScriptRoot 'sources.json') -raw)
 
     if (!$version) {
-        . (Join-Path $PSScriptRoot 'extensions.ps1')
         $versions = ConvertFrom-Props (Get-Content $(Join-Path $PSScriptRoot 'build.profiles'))
         $version = $versions[$name]
     }
     if ($version) {
-        $repo_url = $mirrors_conf.dependencies.$name.mirrors.$active_mirror
-        if ($repo_url) {
-            $url = $repo_url
-            if (!$url.EndsWith('.git')) { $url += '.git' }
+        Set-Variable -Name 'ver' -Value $version -Scope Local
+        $url = expand_str $sources_conf.dependencies.$name.sources.$active_mirror
+        # if no extension, regard as a git repo
+        if (![System.IO.Path]::GetExtension($url)) {
+            $url += '.git'
         }
     }
 }
@@ -154,7 +161,6 @@ else {
     throw "fetch.ps1: invalid url, must be endswith .git, .zip, .tar.xx"
 }
 
-$lib_src = Join-Path $prefix $name
 $is_git_repo = $url_pkg_ext -eq '.git'
 if (!$is_git_repo) {
     $match_info = [Regex]::Match($url, '(\d+\.)+(-)?(\*|\d+)')
@@ -167,19 +173,25 @@ if (!$version) {
     throw "fetch.ps1: can't determine package version of '$name'"
 }
 
+if (!$folder) {
+    $folder = $name
+}
+
+$lib_src = Join-Path $prefix $folder
+
 Set-Variable -Name "${name}_src" -Value $lib_src -Scope global
 
 $sentry = Join-Path $lib_src '_1kiss'
 
-$is_rev_mod = $false # indicate whether rev already modfied or updated
+$is_ref_mod = $false # indicate whether ref updated
 # if sentry file missing, re-clone
 if (!(Test-Path $sentry -PathType Leaf)) {
     if (Test-Path $lib_src -PathType Container) {
         Remove-Item $lib_src -Recurse -Force
     }
 
-    fetch_repo -url $url -name $name -dest $lib_src -ext $url_pkg_ext
-    
+    fetch -url $url -name $name -dest $lib_src -ext $url_pkg_ext
+
     if (Test-Path $lib_src -PathType Container) {
         New-Item $sentry -ItemType File 1>$null
     }
@@ -187,7 +199,7 @@ if (!(Test-Path $sentry -PathType Leaf)) {
         throw "fetch.ps1: fetch content from $url failed"
     }
 
-    $is_rev_mod = $true
+    $is_ref_mod = $true
 }
 
 # re-check does valid local git repo
@@ -195,10 +207,19 @@ if (!(Test-Path "$lib_src/.git" -PathType Container)) { $is_git_repo = $false }
 
 # checkout revision for git repo
 if (!$revision) {
-    $ver_pair = [array]$version.Split('-')
-    $use_hash = $ver_pair.Count -gt 1
-    $revision = $ver_pair[$use_hash].Trim()
-    $version = $ver_pair[0]
+    # Treat versions ending with "-<git-hash>" as pinned commits, for example:
+    #   1.2.3-a1b2c3d
+    #   release-1.2.3-a1b2c3d4e5f6
+    # Other names, including "v1.2.3", "release-1.2.3" and custom tag/branch names,
+    # are passed through as-is and resolved by git below.
+    $match_info = [Regex]::Match($version, '^(.*)-([0-9a-fA-F]{7,40})$')
+    if ($match_info.Success) {
+        $version  = $match_info.Groups[1].Value
+        $revision = $match_info.Groups[2].Value
+    }
+    else {
+        $revision = $version
+    }
 }
 
 $branch_name = $null
@@ -215,7 +236,7 @@ if ($is_git_repo) {
         }
     }
 
-    if ($old_rev_hash -ne $new_rev_hash) {
+    $checkout_revision = {
         git -C $lib_src checkout -- .
         git -C $lib_src checkout $revision 1>$null
         if ($LASTEXITCODE -ne 0) {
@@ -226,16 +247,30 @@ if ($is_git_repo) {
             throw "fetch.ps1: cur_rev_hash($cur_rev_hash) != new_rev_hash($new_rev_hash)"
         }
 
-        $is_rev_mod = $true
+        return $cur_rev_hash
+    }
+
+    if ($old_rev_hash -ne $new_rev_hash) {
+        $cur_rev_hash = &$checkout_revision
+        $is_ref_mod = $true
     }
 
     $branch_name = $(git -C $lib_src branch --show-current)
-    if ($branch_name -and $pull_branch) {
-        git -C $lib_src pull
-        $new_rev_hash = $(git -C $lib_src rev-parse HEAD)
-        if ($cur_rev_hash -ne $new_rev_hash) {
-            $cur_rev_hash = $new_rev_hash
-            $is_rev_mod = $true
+    if ($branch_name) {
+        if ($pull_branch) {
+            git -C $lib_src pull
+            $new_rev_hash = $(git -C $lib_src rev-parse HEAD)
+            if ($cur_rev_hash -ne $new_rev_hash) {
+                $cur_rev_hash = $new_rev_hash
+                $is_ref_mod = $true
+            }
+        }
+
+        # if current in branch, but the branch name doesn't match the revision hint, checkout to revision
+        if ($branch_name -ne $revision) {
+            $cur_rev_hash = &$checkout_revision
+            $is_ref_mod = $true
+            $branch_name = $null
         }
     }
 }
@@ -243,7 +278,7 @@ if ($is_git_repo) {
 # whether the repo use gn build system?
 $is_gn = Test-Path (Join-Path $lib_src '.gn') -PathType Leaf
 
-if ($is_rev_mod) {
+if ($is_ref_mod) {
     $sentry_content = "ver: $version"
     if ($is_git_repo) {
         if ((Test-Path (Join-Path $lib_src '.gitmodules') -PathType Leaf)) {

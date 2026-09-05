@@ -1,16 +1,16 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated July 28, 2023. Replaces all prior versions.
+ * Last updated April 5, 2025. Replaces all prior versions.
  *
- * Copyright (c) 2013-2023, Esoteric Software LLC
+ * Copyright (c) 2013-2025, Esoteric Software LLC
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
  * conditions of Section 2 of the Spine Editor License Agreement:
  * http://esotericsoftware.com/spine-editor-license
  *
- * Otherwise, it is permitted to integrate the Spine Runtimes into software or
- * otherwise create derivative works of the Spine Runtimes (collectively,
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
  * "Products"), provided that each user of the Products must obtain their own
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
@@ -23,14 +23,14 @@
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
  * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE
- * SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #ifndef Spine_Triangulator_h
 #define Spine_Triangulator_h
 
-#include <spine/Vector.h>
+#include <spine/Array.h>
 #include <spine/Pool.h>
 
 namespace spine {
@@ -38,28 +38,22 @@ namespace spine {
 	public:
 		~Triangulator();
 
-		Vector<int> &triangulate(Vector<float> &vertices);
+		Array<int> &triangulate(Array<float> &vertices);
 
-		Vector<Vector < float>* > &
-		decompose(Vector<float>
-		&vertices,
-		Vector<int> &triangles
-		);
+		Array<Array<float> *> &decompose(Array<float> &vertices, Array<int> &triangles);
 
 	private:
-		Vector<Vector < float>* >
-		_convexPolygons;
-		Vector<Vector < int>* >
-		_convexPolygonsIndices;
+		Array<Array<float> *> _convexPolygons;
+		Array<Array<int> *> _convexPolygonsIndices;
 
-		Vector<int> _indices;
-		Vector<bool> _isConcaveArray;
-		Vector<int> _triangles;
+		Array<int> _indices;
+		Array<bool> _isConcaveArray;
+		Array<int> _triangles;
 
-		Pool <Vector<float>> _polygonPool;
-		Pool <Vector<int>> _polygonIndicesPool;
+		Pool<Array<float>> _polygonPool;
+		Pool<Array<int>> _polygonIndicesPool;
 
-		static bool isConcave(int index, int vertexCount, Vector<float> &vertices, Vector<int> &indices);
+		static bool isConcave(int index, int vertexCount, const float *vertices, const int *indices);
 
 		static bool positiveArea(float p1x, float p1y, float p2x, float p2y, float p3x, float p3y);
 

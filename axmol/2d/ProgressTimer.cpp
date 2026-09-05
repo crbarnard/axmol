@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "axmol/base/Macros.h"
 #include "axmol/base/Director.h"
 #include "axmol/2d/Sprite.h"
+#include "axmol/scene/Camera.h"
 #include "axmol/renderer/Renderer.h"
 #include "axmol/base/Utils.h"
 #include "axmol/renderer/Shaders.h"
@@ -57,11 +58,11 @@ rhi::ProgramState* initPipelineDesc(ax::CustomCommand& command,
     // set custom vertexLayout according to V2F_T2F_C4F structure
     VertexLayoutDesc desc = axvlm->allocateVertexLayoutDesc();
     desc.startLayout(3);
-    desc.addAttrib("a_position", program->getVertexInputDesc(rhi::VertexInputKind::POSITION), rhi::VertexFormat::FLOAT2,
-                   0, false);
-    desc.addAttrib("a_texCoord", program->getVertexInputDesc(rhi::VertexInputKind::TEXCOORD), rhi::VertexFormat::FLOAT2,
+    desc.addAttrib(program->getVertexInputDesc(rhi::VertexSemantic::POSITION), rhi::VertexElementType::FLOAT2, 0,
+                   false);
+    desc.addAttrib(program->getVertexInputDesc(rhi::VertexSemantic::TEXCOORD0), rhi::VertexElementType::FLOAT2,
                    offsetof(V2F_T2F_C4F, texCoord), false);
-    desc.addAttrib("a_color", program->getVertexInputDesc(rhi::VertexInputKind::COLOR), rhi::VertexFormat::FLOAT4,
+    desc.addAttrib(program->getVertexInputDesc(rhi::VertexSemantic::COLOR0), rhi::VertexElementType::FLOAT4,
                    offsetof(V2F_T2F_C4F, color), false);
     desc.endLayout();
 
@@ -237,7 +238,7 @@ void ProgressTimer::updateDisplayedOpacity(uint8_t parentOpacity)
     updateColor();
     updateProgress();
 
-    if (_cascadeOpacityEnabled)
+    if (isCascadeOpacityEnabled())
     {
         _sprite->updateDisplayedOpacity(_displayedColor.a);
 
@@ -334,7 +335,7 @@ void ProgressTimer::setContentSize(const ax::Vec2& size)
 
 void ProgressTimer::setMidpoint(const Vec2& midPoint)
 {
-    _midpoint = midPoint.getClampPoint(Vec2::ZERO, Vec2(1, 1));
+    _midpoint = midPoint.getClampPoint(Vec2::zero, Vec2(1, 1));
 }
 
 ///
@@ -632,15 +633,15 @@ Vec2 ProgressTimer::boundaryTexCoord(char index)
                         (kProgressTextureCoords >> (index << 1)) & 1);
     }
 
-    return Vec2::ZERO;
+    return Vec2::zero;
 }
 
-void ProgressTimer::draw(Renderer* renderer, const Mat4& transform, uint32_t flags)
+void ProgressTimer::draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags)
 {
     if (_vertexData.empty() || !_sprite)
         return;
 
-    const ax::Mat4& projectionMat = _director->getMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_PROJECTION);
+    const ax::Mat4& projectionMat = state.getViewProjectionMatrix();
     Mat4 finalMat                 = projectionMat * transform;
     _programState->setUniform(_locMVP1, finalMat.m, sizeof(finalMat.m));
     _programState->setTexture(_locTex1, 0, _sprite->getTexture()->getRHITexture());
@@ -650,23 +651,23 @@ void ProgressTimer::draw(Renderer* renderer, const Mat4& transform, uint32_t fla
         if (!_reverseDirection)
         {
             _customCommand.init(_globalZOrder, _sprite->getBlendFunc());
-            renderer->addCommand(&_customCommand);
+            state.getRenderer()->addCommand(&_customCommand);
         }
         else
         {
             _customCommand.init(_globalZOrder, _sprite->getBlendFunc());
-            renderer->addCommand(&_customCommand);
+            state.getRenderer()->addCommand(&_customCommand);
 
             _customCommand2.init(_globalZOrder, _sprite->getBlendFunc());
             _programState2->setUniform(_locMVP2, finalMat.m, sizeof(finalMat.m));
             _programState2->setTexture(_locTex2, 0, _sprite->getTexture()->getRHITexture());
-            renderer->addCommand(&_customCommand2);
+            state.getRenderer()->addCommand(&_customCommand2);
         }
     }
     else
     {
         _customCommand.init(_globalZOrder, _sprite->getBlendFunc());
-        renderer->addCommand(&_customCommand);
+        state.getRenderer()->addCommand(&_customCommand);
     }
 }
 

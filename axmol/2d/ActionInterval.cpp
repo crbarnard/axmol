@@ -32,11 +32,11 @@ THE SOFTWARE.
 #include <stdarg.h>
 
 #include "axmol/2d/Sprite.h"
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/2d/SpriteFrame.h"
 #include "axmol/2d/ActionInstant.h"
 #include "axmol/base/Director.h"
-#include "axmol/base/EventCustom.h"
+#include "axmol/base/CustomEvent.h"
 #include "axmol/base/EventDispatcher.h"
 #include "axmol/platform/StdC.h"
 #include "axmol/base/ScriptSupport.h"
@@ -471,6 +471,9 @@ void Repeat::stop()
 // container action like Repeat, Sequence, Ease, etc..
 void Repeat::update(float dt)
 {
+    if (isDone())
+        return;
+
     if (dt >= _nextDt)
     {
         while (dt >= _nextDt && _total < _times)
@@ -506,15 +509,17 @@ void Repeat::update(float dt)
             else
             {
                 // issue #390 prevent jerk, use right update
-                if (!(sendUpdateEventToScript(dt - (_nextDt - _innerAction->getDuration() / _duration), _innerAction)))
-                    _innerAction->update(dt - (_nextDt - _innerAction->getDuration() / _duration));
+                const auto innerDt = dt - (_nextDt - _innerAction->getDuration() / _duration);
+                if (!(sendUpdateEventToScript(innerDt, _innerAction)))
+                    _innerAction->update(innerDt);
             }
         }
     }
     else
     {
-        if (!(sendUpdateEventToScript(fmodf(dt * _times, 1.0f), _innerAction)))
-            _innerAction->update(fmodf(dt * _times, 1.0f));
+        const auto innerDt = fmodf(dt * _times, 1.0f);
+        if (!(sendUpdateEventToScript(innerDt, _innerAction)))
+            _innerAction->update(innerDt);
     }
 }
 
@@ -934,7 +939,7 @@ void RotateTo::update(float time)
         }
         else
         {
-#if defined(AX_ENABLE_PHYSICS)
+#if defined(AX_ENABLE_PHYSICS_2D)
             if (_startAngle.x == _startAngle.y && _diffAngle.x == _diffAngle.y)
             {
                 _target->setRotation(_startAngle.x + _diffAngle.x * time);
@@ -947,7 +952,7 @@ void RotateTo::update(float time)
 #else
             _target->setRotationSkewX(_startAngle.x + _diffAngle.x * time);
             _target->setRotationSkewY(_startAngle.y + _diffAngle.y * time);
-#endif  // defined(AX_ENABLE_PHYSICS)
+#endif  // defined(AX_ENABLE_PHYSICS_2D)
         }
     }
 }
@@ -1079,7 +1084,7 @@ void RotateBy::update(float time)
         }
         else
         {
-#if defined(AX_ENABLE_PHYSICS)
+#if defined(AX_ENABLE_PHYSICS_2D)
             if (_startAngle.x == _startAngle.y && _deltaAngle.x == _deltaAngle.y)
             {
                 _target->setRotation(_startAngle.x + _deltaAngle.x * time);
@@ -1092,7 +1097,7 @@ void RotateBy::update(float time)
 #else
             _target->setRotationSkewX(_startAngle.x + _deltaAngle.x * time);
             _target->setRotationSkewY(_startAngle.y + _deltaAngle.y * time);
-#endif  // defined(AX_ENABLE_PHYSICS)
+#endif  // defined(AX_ENABLE_PHYSICS_2D)
         }
     }
 }
@@ -2591,7 +2596,7 @@ void Animate::update(float t)
             if (!dict.empty())
             {
                 if (_frameDisplayedEvent == nullptr)
-                    _frameDisplayedEvent = new EventCustom(AnimationFrameDisplayedNotification);
+                    _frameDisplayedEvent = new CustomEvent(AnimationFrameDisplayedNotification);
 
                 _frameDisplayedEventInfo.target   = _target;
                 _frameDisplayedEventInfo.userInfo = &dict;

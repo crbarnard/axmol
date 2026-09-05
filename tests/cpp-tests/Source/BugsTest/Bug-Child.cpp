@@ -22,14 +22,6 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-//
-//  Bug-Child.cpp
-//  cocos2d_tests
-//
-//  Created by NiTe Luo on 5/12/14.
-//
-//
-
 #include "Bug-Child.h"
 
 using namespace ax;
@@ -100,7 +92,7 @@ bool BugCameraMask::init()
     node->runAction(RepeatForever::create(Sequence::createWithTwoActions(move, move->reverse())));
     addChild(node);
 
-    auto camera = Camera::create();
+    auto camera = Camera::create(CameraMode::Classic);
     camera->setCameraFlag(CameraFlag::USER1);
     addChild(camera);
 

@@ -36,11 +36,11 @@ local function ComponentTestLayer()
         end
     end
 
-    layer._listener1 = ax.EventListenerCustom:create("component game over", onEvent)
+    layer._listener1 = ax.CustomEventListener:create("component game over", onEvent)
     local eventDispatcher = ax.Director:getInstance():getEventDispatcher()
     eventDispatcher:addEventListenerWithFixedPriority(layer._listener1, 1)
 
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
 
     return layer
 end

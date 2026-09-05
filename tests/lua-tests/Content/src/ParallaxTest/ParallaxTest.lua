@@ -126,16 +126,16 @@ local function Parallax2()
     voidNode:addChild( cocosImage, 2, ax.p(3.0,2.5), ax.p(200,1000) )
     ret:addChild(voidNode, 0, kTagNode)
 
-    local function onTouchesMoved(touches, event)
-        local diff = touches[1]:getDelta()
+    local function onPointerMove(event)
+        local diff = ax.pSub(event:getPoint(), event:getPrevPoint())
 
         local node = ret:getChildByTag(kTagNode)
         local currentPosX, currentPosY = node:getPosition()
         node:setPosition(ax.p(currentPosX + diff.x, currentPosY + diff.y))
     end
 
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(onTouchesMoved,ax.Handler.EVENT_TOUCHES_MOVED )
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerMove = onPointerMove
     local eventDispatcher = ret:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, ret)
 

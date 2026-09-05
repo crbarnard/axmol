@@ -111,8 +111,8 @@ std::string BillBoardRotationTest::subtitle() const
 BillBoardTest::BillBoardTest() : _camera(nullptr)
 {
     // Create touch listener
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesMoved = AX_CALLBACK_2(BillBoardTest::onTouchesMoved, this);
+    auto listener           = PointerEventListener::create();
+    listener->onPointerMove = AX_CALLBACK_1(BillBoardTest::onPointerMove, this);
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 
     auto layer3D = Layer::create();
@@ -121,7 +121,8 @@ BillBoardTest::BillBoardTest() : _camera(nullptr)
     auto s          = Director::getInstance()->getCanvasSize();
     if (_camera == nullptr)
     {
-        _camera = Camera::createPerspective(60, (float)s.width / s.height, 1, 500);
+        _camera = Camera::create();
+        _camera->configurePerspective(60, (float)s.width / s.height, 1, 500);
         _camera->setCameraFlag(CameraFlag::USER1);
         _layerBillBoard->addChild(_camera);
     }
@@ -180,7 +181,7 @@ BillBoardTest::BillBoardTest() : _camera(nullptr)
     auto label2    = Label::createWithTTF(ttfConfig, "rotate-");
     auto menuItem2 = MenuItemLabel::create(label2, AX_CALLBACK_1(BillBoardTest::rotateCameraCallback, this, -10));
     auto menu      = Menu::create(menuItem1, menuItem2, nullptr);
-    menu->setPosition(Vec2::ZERO);
+    menu->setPosition(Vec2::zero);
     menuItem1->setPosition(Vec2(s.width - 80, VisibleRect::top().y - 160));
     menuItem2->setPosition(Vec2(s.width - 80, VisibleRect::top().y - 190));
     addChild(menu, 0);
@@ -274,13 +275,11 @@ void BillBoardTest::addNewAniBillBoardWithCoords(Vec3 p)
 }
 void BillBoardTest::update(float dt) {}
 
-void BillBoardTest::onTouchesMoved(const std::vector<Touch*>& touches, Event* event)
+void BillBoardTest::onPointerMove(PointerEvent* event)
 {
-    if (touches.size() == 1)
     {
-        auto touch            = touches[0];
-        auto location         = touch->getLocation();
-        auto PreviousLocation = touch->getPreviousLocation();
+        auto location         = event->getWorldPoint();
+        auto PreviousLocation = event->getPrevWorldPoint();
         Point newPos          = PreviousLocation - location;
 
         Vec3 cameraDir;

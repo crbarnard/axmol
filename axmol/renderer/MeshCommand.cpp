@@ -27,12 +27,12 @@
 #include "axmol/base/Macros.h"
 #include "axmol/base/Environment.h"
 #include "axmol/base/Director.h"
-#include "axmol/base/EventCustom.h"
-#include "axmol/base/EventListenerCustom.h"
+#include "axmol/base/CustomEvent.h"
+#include "axmol/base/CustomEventListener.h"
 #include "axmol/base/EventDispatcher.h"
 #include "axmol/base/EventType.h"
 #include "axmol/2d/Light.h"
-#include "axmol/2d/Camera.h"
+#include "axmol/scene/Node.h"
 #include "axmol/renderer/Renderer.h"
 #include "axmol/renderer/TextureAtlas.h"
 #include "axmol/renderer/Texture2D.h"
@@ -53,7 +53,7 @@ MeshCommand::MeshCommand()
     _is3D = true;
 #if AX_ENABLE_CONTEXT_LOSS_RECOVERY
     // listen the event that renderer was recreated on Android/WP8
-    _rendererRecreatedListener = EventListenerCustom::create(EVENT_RENDERER_RECREATED,
+    _rendererRecreatedListener = CustomEventListener::create(EVENT_RENDERER_RECREATED,
                                                              AX_CALLBACK_1(MeshCommand::listenRendererRecreated, this));
     Director::getInstance()->getEventDispatcher()->addEventListenerWithFixedPriority(_rendererRecreatedListener, -1);
 #endif
@@ -64,14 +64,9 @@ void MeshCommand::init(float globalZOrder)
     CustomCommand::init(globalZOrder);
 }
 
-void MeshCommand::init(float globalZOrder, const Mat4& transform)
+void MeshCommand::init(float globalZOrder, const Mat4& transform, const SceneViewData& view)
 {
-    CustomCommand::init(globalZOrder);
-    if (Camera::getVisitingCamera())
-    {
-        _depth = Camera::getVisitingCamera()->getDepthInView(transform);
-    }
-    _mv = transform;
+    RenderCommand::init(globalZOrder, transform, Node::FLAGS_RENDER_AS_3D, view);
 }
 
 MeshCommand::~MeshCommand()
@@ -82,7 +77,7 @@ MeshCommand::~MeshCommand()
 }
 
 #if AX_ENABLE_CONTEXT_LOSS_RECOVERY
-void MeshCommand::listenRendererRecreated(EventCustom* event) {}
+void MeshCommand::listenRendererRecreated(CustomEvent* event) {}
 #endif
 
 }  // namespace ax

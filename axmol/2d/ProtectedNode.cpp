@@ -31,7 +31,7 @@
 #include "axmol/2d/ProtectedNode.h"
 
 #include "axmol/base/Director.h"
-#include "axmol/2d/Scene.h"
+#include "axmol/scene/Scene.h"
 
 namespace ax
 {
@@ -107,12 +107,11 @@ void ProtectedNode::addProtectedChild(Node* child, int zOrder, int tag)
         }
     }
 
-    if (_cascadeColorEnabled)
+    if (isCascadeColorEnabled())
     {
         updateCascadeColor();
     }
-
-    if (_cascadeOpacityEnabled)
+    else if (isCascadeOpacityEnabled())
     {
         updateCascadeOpacity();
     }
@@ -272,7 +271,7 @@ void ProtectedNode::reorderProtectedChild(ax::Node* child, int localZOrder)
     child->setLocalZOrder(localZOrder);
 }
 
-void ProtectedNode::visit(Renderer* renderer, const Mat4& parentTransform, uint32_t parentFlags)
+void ProtectedNode::visit(const SceneRenderState& state, const Mat4& parentTransform, uint32_t parentFlags)
 {
     // quick return if not visible. children won't be drawn.
     if (!_visible)
@@ -280,13 +279,7 @@ void ProtectedNode::visit(Renderer* renderer, const Mat4& parentTransform, uint3
         return;
     }
 
-    uint32_t flags = processParentFlags(parentTransform, parentFlags);
-
-    // IMPORTANT:
-    // To ease the migration to v3.0, we still support the Mat4 stack,
-    // but it is deprecated and your code should not rely on it
-    _director->pushMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW);
-    _director->loadMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW, _modelViewTransform);
+    uint32_t flags = processParentFlags(state, parentTransform, parentFlags);
 
     int i = 0;  // used by _children
     int j = 0;  // used by _protectedChildren
@@ -302,7 +295,7 @@ void ProtectedNode::visit(Renderer* renderer, const Mat4& parentTransform, uint3
         auto node = _children.at(i);
 
         if (node && node->getLocalZOrder() < 0)
-            node->visit(renderer, _modelViewTransform, flags);
+            node->visit(state, _modelViewTransform, flags);
         else
             break;
     }
@@ -312,7 +305,7 @@ void ProtectedNode::visit(Renderer* renderer, const Mat4& parentTransform, uint3
         auto node = _protectedChildren.at(j);
 
         if (node && node->getLocalZOrder() < 0)
-            node->visit(renderer, _modelViewTransform, flags);
+            node->visit(state, _modelViewTransform, flags);
         else
             break;
     }
@@ -320,23 +313,21 @@ void ProtectedNode::visit(Renderer* renderer, const Mat4& parentTransform, uint3
     //
     // draw self
     //
-    if (isVisitableByVisitingCamera())
-        this->draw(renderer, _modelViewTransform, flags);
+    if (isVisitableByCamera(state.cameraFlag))
+        this->draw(state, _modelViewTransform, flags);
 
     //
     // draw children and protectedChildren zOrder >= 0
     //
     for (auto it = _protectedChildren.cbegin() + j, itCend = _protectedChildren.cend(); it != itCend; ++it)
-        (*it)->visit(renderer, _modelViewTransform, flags);
+        (*it)->visit(state, _modelViewTransform, flags);
 
     for (auto it = _children.cbegin() + i, itCend = _children.cend(); it != itCend; ++it)
-        (*it)->visit(renderer, _modelViewTransform, flags);
+        (*it)->visit(state, _modelViewTransform, flags);
 
     // FIX ME: Why need to set _orderOfArrival to 0??
     // Please refer to https://github.com/cocos2d/cocos2d-x/pull/6920
     // setOrderOfArrival(0);
-
-    _director->popMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW);
 }
 
 void ProtectedNode::onEnter()
@@ -372,7 +363,7 @@ void ProtectedNode::updateDisplayedOpacity(uint8_t parentOpacity)
     _displayedColor.a = _realColor.a * parentOpacity / 255.0;
     updateColor();
 
-    if (_cascadeOpacityEnabled)
+    if (isCascadeOpacityEnabled())
     {
         for (auto&& child : _children)
         {
@@ -391,18 +382,25 @@ void ProtectedNode::updateDisplayedColor(const Color32& parentColor)
     _displayedColor.r = _realColor.r * parentColor.r / 255.0f;
     _displayedColor.g = _realColor.g * parentColor.g / 255.0f;
     _displayedColor.b = _realColor.b * parentColor.b / 255.0f;
-    if (_cascadeOpacityEnabled)
-        _displayedColor.a = _realColor.a * parentColor.a / 255.0f;
+    _displayedColor.a = _realColor.a * parentColor.a / 255.0f;
 
     updateColor();
 
-    if (_cascadeColorEnabled)
+    if (isCascadeColorEnabled())
     {
         for (const auto& child : _children)
         {
             child->updateDisplayedColor(_displayedColor);
         }
     }
+    else if (isCascadeOpacityEnabled())
+    {
+        for (const auto& child : _children)
+        {
+            child->updateDisplayedOpacity(_displayedColor.a);
+        }
+    }
+
     for (const auto& child : _protectedChildren)
     {
         child->updateDisplayedColor(_displayedColor);
@@ -413,11 +411,11 @@ void ProtectedNode::disableCascadeColor()
 {
     for (auto&& child : _children)
     {
-        child->updateDisplayedColor(Color32::WHITE);
+        child->updateDisplayedColor(Color32::white);
     }
     for (auto&& child : _protectedChildren)
     {
-        child->updateDisplayedColor(Color32::WHITE);
+        child->updateDisplayedColor(Color32::white);
     }
 }
 

@@ -32,7 +32,7 @@
 
 #pragma once
 
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/tlx/vector.hpp"
 #include "axmol/base/Types.h"
 #include "axmol/renderer/CustomCommand.h"
@@ -202,6 +202,15 @@ public:
                     const Color& color,
                     float thickness = 1.0f);
 
+    /** Draws a (fast) circle given the center, radius.
+     *
+     * @param center The circle center point.
+     * @param radius The circle rotate of radiu
+     * @param color Set the circle color.
+     * @param thickness  (default 1.0f)
+     */
+    void drawCircle(const Vec2& center, float radius, const Color& color, float thickness = 1.0f);
+
     /** Draws a star given the center, radiusI, radiusO and number of segments.
      *
      * @param center The circle center point.
@@ -366,6 +375,13 @@ public:
                          const Color& borderColor,
                          bool drawLineToCenter = false);
 
+    void drawSolidCircle(const Vec2& center, float radius, const Color& fillColor, const Color& lineColor, float angle);
+    void drawSolidCircle(const Vec2& center,
+                         float radius,
+                         const Color& fillColor,
+                         const Color& lineColor,
+                         const Vec2& vec);
+
     /** Draws a solid circle given the center, radius and number of segments.
      * @param center The circle center point.
      * @param radius The circle rotate of radius.
@@ -391,6 +407,7 @@ public:
      * @param color The solid circle color.
      */
     void drawSolidCircle(const Vec2& center, float radius, float angle, unsigned int segments, const Color& color);
+    void drawSolidCircle(const Vec2& center, float radius, const Color& color);
 
     /** Draws a pie given the center, radius, angle, start angle, end angle  and number of segments.
      * @param center The circle center point.
@@ -489,9 +506,9 @@ public:
      */
 
     void drawColoredTriangle(const Vec2* vertices3, const Color* color3);
-    void drawTriangle(const Vec2* vertices3, const Color& color);
 
-    void drawTriangle(const Vec2& p1, const Vec2& p2, const Vec2& p3, const Color& color);
+    void drawTriangle(const Vec2* vertices3, const Color& color, float thickness = 1.0f);
+    void drawTriangle(const Vec2& p1, const Vec2& p2, const Vec2& p3, const Color& color, float thickness = 1.0f);
 
     void drawSolidTriangle(const Vec2* vertices3,
                            const Color& fillColor,
@@ -521,9 +538,9 @@ public:
     void setBlendFunc(const BlendFunc& blendFunc) override;
 
     // Overrides
-    void draw(Renderer* renderer, const Mat4& transform, uint32_t flags) override;
+    void draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags) override;
 
-    void visit(Renderer* renderer, const Mat4& parentTransform, uint32_t parentFlags) override;
+    void visit(const SceneRenderState& state, const Mat4& parentTransform, uint32_t parentFlags) override;
 
     /**
      * When isolated is set, the position of the node is no longer affected by parent nodes.
@@ -547,7 +564,7 @@ protected:
     void freeShaderInternal(CustomCommand& cmd);
 
     void updateBlendState(CustomCommand& cmd);
-    void updateUniforms(const Mat4& transform, CustomCommand& cmd);
+    void updateUniforms(const SceneRenderState& state, const Mat4& transform, CustomCommand& cmd);
 
     bool _trianglesDirty : 1 = false;
     bool _pointsDirty : 1    = false;
@@ -565,6 +582,8 @@ protected:
     tlx::pod_vector<V2F_T2F_C4F> _points;
     tlx::pod_vector<V2F_T2F_C4F> _lines;
 
+    Vec2* _verticesCircle = nullptr;  // avoid cos/sin and frequently allocation when drawing circle and ellipse
+    int _segments         = AX_DRAWNODE_PRE_CALCULATING_VERTICES;  // default segments used for circle and ellipse
 private:
     // Internal function _drawPoint
     void _drawPoint(const Vec2& position,
@@ -582,15 +601,9 @@ private:
     // Internal function _drawDot
     void _drawDot(const Vec2& pos, float radius, const Color& color);
 
-    // Internal function _drawTriangle
+    // Internal function _drawColoredTriangle
     // Note: modifies supplied vertex array
-    void _drawTriangle(Vec2* vertices3,
-                       const Color& borderColor,
-                       const Color& fillColor,
-                       bool solid      = true,
-                       float thickness = 0.0f);
-
-    void _drawColoredTriangle(Vec2* vertices3, const Color* color3);
+    void _drawColoredTriangle(const Vec2* vertices3, const Color* color3);
 
     // Internal function _drawAStar
     void _drawAStar(const Vec2& center,
@@ -622,6 +635,12 @@ private:
     // Internal function _drawLine
     void _drawLine(const Vec2& from, const Vec2& to, const Color& color);
 
+    // Internal function _drawRect
+    void _drawRect(const Vec2& origin, const Vec2& destination, const Color& color, float thickness = 1.0f);
+
+    // Internal function _drawFilledRect
+    void _drawFilledRect(const Vec2& origin, const Vec2& destination, const Color& color);
+
     // Internal function _drawSegment
     void _drawSegment(const Vec2& origin,
                       const Vec2& destination,
@@ -643,6 +662,26 @@ private:
                      bool solid,
                      float thickness = 1.0f);
 
+    // Internal function _drawCircle
+    void _drawCircle(const Vec2& center, float radius, const Color& color, float thickness);
+
+    // Internal function _drawSolidCircle
+    void _drawSolidCircle(const Vec2& center, float radius, const Color& color);
+
+    // Internal function _drawSolidCircle
+    void _drawSolidCircle(const Vec2& center,
+                          float radius,
+                          const Color& fillColor,
+                          const Color& borderColor,
+                          float thickness);
+
+    // Internal function _drawSolidCircle
+    void _drawSolidCircle(const Vec2& center,
+                          float radius,
+                          const Color& color,
+                          const Color& lineColor,
+                          const Vec2& vec2);
+
     // Internal function _drawPie
     void _drawPie(const Vec2& center,
                   float radius,
@@ -663,96 +702,91 @@ private:
      */
     tlx::pod_vector<Vec2> _transform(const Vec2* vertices, unsigned int& count, bool closedPolygon = false);
 
-    void applyTransform(const Vec2* from, Vec2* to, unsigned int count);
+    void applyLocalTransform(const Vec2* from, Vec2* to, unsigned int count) const;
+
+    /// Advanced settings
+public:
+    float getThicknessScale() const { return _thicknessScale; }
+    void setThicknessScale(float s)
+    {
+        _thicknessScale = s;
+        _linesDirty = _trianglesDirty = true;
+    }
+
+    bool isLocalTransformEnabled() const { return _localTransformEnabled; }
+    void setLocalTransformEnabled(bool e)
+    {
+        _localTransformEnabled = e;
+        _linesDirty = _trianglesDirty = true;
+    }
+
+    void setLocalScale(const Vec2& s)
+    {
+        _localScale     = s;
+        _trianglesDirty = _linesDirty = true;
+    }
+    const Vec2& getLocalScale() const { return _localScale; }
+
+    void setLocalPivot(const Vec2& c)
+    {
+        _localPivot     = c;
+        _trianglesDirty = _linesDirty = true;
+    }
+    const Vec2& getLocalPivot() const { return _localPivot; }
+
+    void setLocalRotation(float a)
+    {
+        _localRotation    = a;
+        _localRotationRad = AX_DEGREES_TO_RADIANS(_localRotation);
+        _trianglesDirty = _linesDirty = true;
+    }
+    float getLocalRotation() const { return _localRotation; }
+
+    void setLocalPosition(const Vec2& p)
+    {
+        _localPosition  = p;
+        _trianglesDirty = _linesDirty = true;
+    }
+    const Vec2& getLocalPosition() const { return _localPosition; }
+
+    void setPreserveDrawOrder(bool v)
+    {
+        _preserveDrawOrder = v;
+        _trianglesDirty = _linesDirty = true;
+    }
+    bool isPreserveDrawOrder() const { return _preserveDrawOrder; }
+
+    // convenience: reset to defaults
+    void resetAdvancedSettings()
+    {
+        _thicknessScale        = 1.0f;
+        _localScale            = Vec2(1.0f, 1.0f);
+        _localPivot            = Vec2::zero;
+        _localRotation         = 0.0f;
+        _localRotationRad      = 0.0f;
+        _localPosition         = Vec2::zero;
+        _preserveDrawOrder     = false;
+        _localTransformEnabled = false;
+        _trianglesDirty = _linesDirty = _pointsDirty = true;
+    }
+
+protected:
+    // thickness scale (was factor)
+    float _thicknessScale{1.0f};
+
+    // optional local transform applied to primitives when enabled
+    Vec2 _localScale{1.0f, 1.0f};
+    Vec2 _localPivot{0.0f, 0.0f};
+    float _localRotation{0.0f};     // local rotation in degrees
+    float _localRotationRad{0.0f};  // local rotation in radians (cached for efficiency)
+    Vec2 _localPosition{0.0f, 0.0f};
+
+    // flags
+    bool _localTransformEnabled{false};
+    bool _preserveDrawOrder{false};
 
 private:
     AX_DISALLOW_COPY_AND_ASSIGN(DrawNode);
-
-public:
-    class AX_DLL Properties
-    {
-    public:
-        float factor;  /// thickness scale factor
-
-        // transforming stuff
-        Vec2 scale;
-        Vec2 center;
-        float rotation;
-        Vec2 position;
-
-        // Drawing flags
-        bool transform = false;
-        bool drawOrder = false;
-
-        /** Set the DrawNode drawOrder
-        *
-        * @param drawOrder. true/false = On/Off
-        * Its for performance there
-        * false = cocos2dx behaviour => faster but works only on 1.0f thickness
-
-        */
-        void setDrawOrder(bool dO) { drawOrder = dO; };
-
-        /** Get the DrawNode drawOrder
-         *
-         */
-        bool getDrawOrder(void) { return drawOrder; };
-
-        /** Set the DrawNode transform
-         *
-         * @param transform. true/false = On/Off
-         *
-         */
-        void setTransform(bool t) { transform = t; };
-
-        /** Get the DrawNode transform
-         *
-         */
-        bool getTransform(void) { return transform; };
-
-        /** Set the DrawNode scale for each drawing primitive after this.
-
-        */
-        void setScale(Vec2 s) { scale = s; };
-
-        /** Set the DrawNode rotation for each drawing primitive after this.
-
-        */
-        void setRotation(float r) { rotation = r; };
-
-        /** Get the DrawNode rotation for each drawing primitive after this.
-
-        */
-        float getRotation() { return rotation; };
-
-        /** Set the DrawNode center of rotation for each drawing primitive after this.
-
-        */
-        void setCenter(Vec2 c) { center = c; };
-
-        /** Get the DrawNode center of rotation for each drawing primitive after this.
-
-        */
-        Vec2 getCenter() { return center; };
-
-        /** Set the DrawNode position for each drawing primitive after this.
-
-        */
-        void setPosition(Vec2 p) { position = p; };
-
-        /** Get the DrawNode position for drawing primitive.
-
-        */
-        Vec2 getPosition() { return position; };
-
-        /** Set all default DrawNode properties.
-
-        */
-        void setDefaultValues();
-        float getFactor() { return factor; };
-        void setFactor(float fac) { factor = fac; };
-
-    } properties;
 };
 
 /** @} */

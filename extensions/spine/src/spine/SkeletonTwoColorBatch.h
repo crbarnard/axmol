@@ -1,16 +1,19 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated July 28, 2023. Replaces all prior versions.
+ * Last updated April 5, 2025. Replaces all prior versions.
  *
- * Copyright (c) 2013-2023, Esoteric Software LLC
+ * Copyright (c) 2013-2025, Esoteric Software LLC
+ * Copyright (c) 2019-present Axmol Engine contributors (see AUTHORS.md).
+ *
+ * https://axmol.dev/
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
  * conditions of Section 2 of the Spine Editor License Agreement:
  * http://esotericsoftware.com/spine-editor-license
  *
- * Otherwise, it is permitted to integrate the Spine Runtimes into software or
- * otherwise create derivative works of the Spine Runtimes (collectively,
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
  * "Products"), provided that each user of the Products must obtain their own
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
@@ -23,18 +26,24 @@
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
  * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE
- * SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef SPINE_SKELETONTWOCOLORBATCH_H_
-#define SPINE_SKELETONTWOCOLORBATCH_H_
+#pragma once
 
-#include "axmol/axmol.h"
 #include "axmol/rhi/ProgramState.h"
+#include "axmol/renderer/CustomCommand.h"
+#include "axmol/renderer/TrianglesCommand.h"
+#include "axmol/renderer/Renderer.h"
+#include "axmol/renderer/Texture2D.h"
 #include "axmol/rhi/VertexLayout.h"
 #include <spine/spine.h>
 #include <vector>
+
+namespace ax {
+	struct SceneRenderState;
+}
 
 namespace spine {
 	struct V3F_C4B_C4B_T2F {
@@ -57,7 +66,7 @@ namespace spine {
 
 		~TwoColorTrianglesCommand();
 
-		void init(float globalOrder, axmol::Texture2D *texture, axmol::rhi::ProgramState *programState, axmol::BlendFunc blendType, const TwoColorTriangles &triangles, const axmol::Mat4 &mv, uint32_t flags);
+		void init(float globalOrder, axmol::Texture2D *texture, axmol::rhi::ProgramState *programState, axmol::BlendFunc blendType, const TwoColorTriangles &triangles, const axmol::Mat4 &mv, uint32_t flags, const axmol::SceneViewData &view);
 
 		void updateCommandPipelineDescriptor(axmol::rhi::ProgramState *programState);
 
@@ -113,7 +122,7 @@ namespace spine {
 		unsigned short *allocateIndices(uint32_t numIndices);
 		void deallocateIndices(uint32_t numIndices);
 
-		TwoColorTrianglesCommand *addCommand(axmol::Renderer *renderer, float globalOrder, axmol::Texture2D *texture, axmol::rhi::ProgramState *programState, axmol::BlendFunc blendType, const TwoColorTriangles &triangles, const axmol::Mat4 &mv, uint32_t flags);
+		TwoColorTrianglesCommand *addCommand(const axmol::SceneRenderState &state, float globalOrder, axmol::Texture2D *texture, axmol::rhi::ProgramState *programState, axmol::BlendFunc blendType, const TwoColorTriangles &triangles, const axmol::Mat4 &mv, uint32_t flags);
 
 		void batch(axmol::Renderer *renderer, TwoColorTrianglesCommand *command);
 
@@ -130,7 +139,6 @@ namespace spine {
 		TwoColorTrianglesCommand *nextFreeCommand();
 
         ax::EventListener* _event1{nullptr};
-        ax::EventListener* _event2{nullptr};
 
 		// pool of commands
 		std::vector<TwoColorTrianglesCommand *> _commandsPool;
@@ -141,7 +149,7 @@ namespace spine {
 		uint32_t _numVertices;
 
 		// pool of indices
-		Vector<unsigned short> _indices;
+		spine::Array<unsigned short> _indices;
 
 
         ax::rhi::ProgramState* _twoColorProgramState{nullptr};
@@ -162,5 +170,3 @@ namespace spine {
 		uint32_t _numBatches;
 	};
 }// namespace spine
-
-#endif// SPINE_SKELETONTWOCOLORBATCH_H_

@@ -27,7 +27,7 @@ THE SOFTWARE.
 ****************************************************************************/
 #pragma once
 
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/base/Vector.h"
 
 namespace ax
@@ -84,7 +84,7 @@ public:
     void addChild(Node* child, int zOrder, std::string_view name) override;
     void removeChild(Node* child, bool cleanup) override;
     void removeAllChildrenWithCleanup(bool cleanup) override;
-    void visit(Renderer* renderer, const Mat4& parentTransform, uint32_t parentFlags) override;
+    void visit(const SceneRenderState& state, const Mat4& parentTransform, uint32_t parentFlags) override;
 
     /** Adds a child to the container with a z-order, a parallax ratio and a position offset
      It returns self, so you can chain several addChilds.

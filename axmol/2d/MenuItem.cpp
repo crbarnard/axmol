@@ -151,7 +151,7 @@ void MenuItemLabel::setLabel(Node* var)
 {
     if (var)
     {
-        var->setAnchorPoint(Vec2::ANCHOR_BOTTOM_LEFT);
+        var->setAnchorPoint(Anchors::bottomLeft);
         setContentSize(var->getContentSize());
         addChild(var);
     }
@@ -184,12 +184,11 @@ bool MenuItemLabel::initWithLabel(Node* label, const ccMenuCallback& callback)
 {
     MenuItem::initWithCallback(callback);
     _originalScale = 1.0f;
-    _colorBackup   = Color32::WHITE;
+    _colorBackup   = Color32::white;
     setDisabledColor(Color32(126, 126, 126, 255));
     this->setLabel(label);
 
     setCascadeColorEnabled(true);
-    setCascadeOpacityEnabled(true);
 
     return true;
 }
@@ -258,7 +257,7 @@ void MenuItemLabel::setEnabled(bool enabled)
 {
     if (_enabled != enabled)
     {
-        if (enabled == false)
+        if (!enabled)
         {
             _colorBackup = this->getColor();
             this->setColor(_disabledColor);
@@ -514,7 +513,6 @@ bool MenuItemSprite::initWithNormalSprite(Node* normalSprite,
     }
 
     setCascadeColorEnabled(true);
-    setCascadeOpacityEnabled(true);
 
     return true;
 }
@@ -796,7 +794,6 @@ bool MenuItemToggle::initWithItem(MenuItem* item)
     this->setSelectedIndex(0);
 
     setCascadeColorEnabled(true);
-    setCascadeOpacityEnabled(true);
 
     return true;
 }

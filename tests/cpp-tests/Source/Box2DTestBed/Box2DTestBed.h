@@ -32,6 +32,7 @@
 class SampleDrawNode;
 class SampleEntry;
 class Sample;
+struct SampleDraw;
 
 DEFINE_TEST_SUITE(Box2DTestBedTests);
 
@@ -52,13 +53,13 @@ public:
 
     bool initWithEntryIndex(int entryIndex);
 
-    void onKeyPressed(ax::EventKeyboard::KeyCode code, ax::Event* event);
-    void onKeyReleased(ax::EventKeyboard::KeyCode code, ax::Event* event);
+    void onKeyPressed(ax::KeyboardEvent* event);
+    void onKeyReleased(ax::KeyboardEvent* event);
 
-    bool onMouseDown(ax::Event* event);
-    bool onMouseUp(ax::Event* event);
-    bool onMouseMove(ax::Event* event);
-    bool onMouseScroll(ax::Event* event);
+    bool onPointerDown(ax::PointerEvent* event);
+    bool onPointerUp(ax::PointerEvent* event);
+    void onPointerMove(ax::PointerEvent* event);
+    bool onPointerScroll(ax::PointerEvent* event);
 
     void RestartSample();
 
@@ -73,12 +74,14 @@ private:
     ax::Vec2 _dragingStartPos;
     bool _draging{false};
 
-    /*ax::EventListenerTouchOneByOne* _touchListener{};*/
-    ax::EventListenerKeyboard* _keyboardListener{};
-    ax::EventListenerMouse* _mouseListener{};
+    /*ax::PointerEventListener* _touchListener{};*/
+    ax::KeyboardEventListener* _keyboardListener{};
+    ax::PointerEventListener* _pointerListener{};
 
     // Debug stuff
-    SampleDrawNode* _debugDrawNode{};
+    SampleDrawNode* _debugDrawNode{nullptr};
+
+    SampleDraw* _sampleDrawProxy{nullptr};
 };
 
 #endif

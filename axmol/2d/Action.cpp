@@ -29,7 +29,7 @@ THE SOFTWARE.
 
 #include "axmol/2d/Action.h"
 #include "axmol/2d/ActionInterval.h"
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/base/Director.h"
 #include "axmol/base/text_utils.h"
 
@@ -178,12 +178,12 @@ Follow::~Follow()
     AX_SAFE_RELEASE(_followedNode);
 }
 
-Follow* Follow::create(Node* followedNode, const Rect& rect /* = Rect::ZERO*/)
+Follow* Follow::create(Node* followedNode, const Rect& rect /* = Rect::zero*/)
 {
     return createWithOffset(followedNode, 0.0, 0.0, rect);
 }
 
-Follow* Follow::createWithOffset(Node* followedNode, float xOffset, float yOffset, const Rect& rect /*= Rect::ZERO*/)
+Follow* Follow::createWithOffset(Node* followedNode, float xOffset, float yOffset, const Rect& rect /*= Rect::zero*/)
 {
 
     Follow* follow = new Follow();
@@ -222,7 +222,7 @@ bool Follow::initWithTargetAndOffset(Node* followedNode, float xOffset, float yO
     followedNode->retain();
     _followedNode         = followedNode;
     _worldRect            = rect;
-    _boundarySet          = !rect.equals(Rect::ZERO);
+    _boundarySet          = !rect.equals(Rect::zero);
     _boundaryFullyCovered = false;
 
     Vec2 canvasSize = Director::getInstance()->getCanvasSize();
@@ -262,7 +262,7 @@ bool Follow::initWithTargetAndOffset(Node* followedNode, float xOffset, float yO
     return true;
 }
 
-bool Follow::initWithTarget(Node* followedNode, const Rect& rect /*= Rect::ZERO*/)
+bool Follow::initWithTarget(Node* followedNode, const Rect& rect /*= Rect::zero*/)
 {
 
     return initWithTargetAndOffset(followedNode, 0.0, 0.0, rect);

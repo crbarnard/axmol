@@ -1,16 +1,16 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated July 28, 2023. Replaces all prior versions.
+ * Last updated April 5, 2025. Replaces all prior versions.
  *
- * Copyright (c) 2013-2023, Esoteric Software LLC
+ * Copyright (c) 2013-2025, Esoteric Software LLC
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
  * conditions of Section 2 of the Spine Editor License Agreement:
  * http://esotericsoftware.com/spine-editor-license
  *
- * Otherwise, it is permitted to integrate the Spine Runtimes into software or
- * otherwise create derivative works of the Spine Runtimes (collectively,
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
  * "Products"), provided that each user of the Products must obtain their own
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
@@ -23,8 +23,8 @@
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
  * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE
- * SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #ifndef Spine_RTTI_h
@@ -38,6 +38,9 @@ namespace spine {
 		explicit RTTI(const char *className);
 
 		RTTI(const char *className, const RTTI &baseRTTI);
+
+		// New constructor for multiple interfaces (up to 3)
+		RTTI(const char *className, const RTTI &baseRTTI, const RTTI *interface1, const RTTI *interface2 = 0, const RTTI *interface3 = 0);
 
 		const char *getClassName() const;
 
@@ -53,20 +56,37 @@ namespace spine {
 
 		const char *_className;
 		const RTTI *_pBaseRTTI;
+		const RTTI *_interfaces[3];// Support up to 3 interfaces
+		int _interfaceCount;
 	};
 }
 
-#define RTTI_DECL \
-public: \
-static const spine::RTTI rtti; \
-virtual const spine::RTTI& getRTTI() const;
+#define RTTI_DECL_NOPARENT                                                                                                                           \
+public:                                                                                                                                              \
+	static const RTTI rtti;                                                                                                                          \
+	virtual const RTTI &getRTTI() const;
 
-#define RTTI_IMPL_NOPARENT(name) \
-const spine::RTTI name::rtti(#name); \
-const spine::RTTI& name::getRTTI() const { return rtti; }
+#define RTTI_DECL                                                                                                                                    \
+public:                                                                                                                                              \
+	static const RTTI rtti;                                                                                                                          \
+	virtual const RTTI &getRTTI() const override;
 
-#define RTTI_IMPL(name, parent) \
-const spine::RTTI name::rtti(#name, parent::rtti); \
-const spine::RTTI& name::getRTTI() const { return rtti; }
+#define RTTI_IMPL_NOPARENT(name)                                                                                                                     \
+	const RTTI name::rtti(#name);                                                                                                                    \
+	const RTTI &name::getRTTI() const {                                                                                                              \
+		return rtti;                                                                                                                                 \
+	}
+
+#define RTTI_IMPL(name, parent)                                                                                                                      \
+	const RTTI name::rtti(#name, parent::rtti);                                                                                                      \
+	const RTTI &name::getRTTI() const {                                                                                                              \
+		return rtti;                                                                                                                                 \
+	}
+
+#define RTTI_IMPL_MULTI(name, parent, ...)                                                                                                           \
+	const RTTI name::rtti(#name, parent::rtti, &__VA_ARGS__::rtti);                                                                                  \
+	const RTTI &name::getRTTI() const {                                                                                                              \
+		return rtti;                                                                                                                                 \
+	}
 
 #endif /* Spine_RTTI_h */

@@ -47,7 +47,7 @@ public:
     {
 #if defined(AX_ENABLE_EXT_EFFEKSEER)
 #    pragma message("The optional extension Effekseer is enabled.")
-        addTest("Effekseer", []() { return new EffekseerTests(); });
+        addTest("Particles(Effekseer)", []() { return new EffekseerTests(); });
 #endif
         addTest("Scene3D", []() { return new Scene3DTests(); });
 #if AX_ENABLE_EXT_IMGUI
@@ -61,13 +61,15 @@ public:
         addTest("AudioEngine", []() { return new AudioEngineTests(); });
 
         addTest("Box2D - Basic", []() { return new Box2DTests(); });
-#if AX_ENABLE_EXT_IMGUI && AX_TARGET_PLATFORM != AX_PLATFORM_ANDROID
+
+        // Box2DTestBed is only works on PC platforms, because it requires glfw which is not available on mobile
+        // platforms
+#if AX_ENABLE_EXT_IMGUI && defined(AX_PLATFORM_GLFW)
         addTest("Box2D - TestBed", []() { return new Box2DTestBedTests(); });
 #endif
         addTest("Bugs", []() { return new BugsTests(); });
         addTest("Click and Move", []() { return new ClickAndMoveTest(); });
         addTest("Environment", []() { return new EnvironmentTests(); });
-        addTest("Console", []() { return new ConsoleTests(); });
 #if !defined(__EMSCRIPTEN__)
         addTest("Curl", []() { return new CurlTests(); });
 #endif
@@ -87,7 +89,9 @@ public:
         addTest("BillBoard", []() { return new BillBoardTests(); });
         addTest("Camera3D", []() { return new Camera3DTests(); });
         addTest("Clipping", []() { return new ClippingNodeTests(); });
+#if AX_ENABLE_EXT_IMGUI
         addTest("DrawNode", []() { return new DrawNodeTests(); });
+#endif
         addTest("Label", []() { return new NewLabelTests(); });
         addTest("Layer", []() { return new LayerTests(); });
         addTest("Light", []() { return new LightTests(); });
@@ -95,21 +99,25 @@ public:
         addTest("MotionStreak", []() { return new MotionStreakTests(); });
         addTest("Node", []() { return new NodeTests(); });
         addTest("Parallax", []() { return new ParallaxTests(); });
-        addTest("Particles", []() { return new ParticleTests(); });
-        addTest("Particle3D (PU)", []() { return new Particle3DTests(); });
-#if defined(AX_ENABLE_PHYSICS)
-        addTest("Physics", []() { return new PhysicsTests(); });
+        addTest("Particles2D", []() { return new ParticleTests(); });
+        addTest("Particles(PU)", []() { return new Particle3DTests(); });
+#if defined(AX_ENABLE_PHYSICS_2D)
+        addTest("Physics2D", []() { return new PhysicsTests(); });
 #endif
+#if defined(AX_ENABLE_PHYSICS_3D)
         addTest("Physics3D", []() { return new Physics3DTests(); });
+#endif
         addTest("RenderTexture", []() { return new RenderTextureTests(); });
         addTest("Scene", []() { return new SceneTests(); });
         addTest("Spine", []() { return new SpineTests(); });
         addTest("Sprite", []() { return new SpriteTests(); });
+#ifdef AX_ENABLE_EXT_SVG
+        addTest("Sprite - from SVG", []() { return new SVGTests(); });
+#endif
         addTest("MeshRenderer", []() { return new MeshRendererTests(); });
         addTest("SpritePolygon", []() { return new SpritePolygonTest(); });
         addTest("Terrain", []() { return new TerrainTests(); });
         addTest("FastTileMap", []() { return new FastTileMapTests(); });
-        addTest("Text Input", []() { return new TextInputTests(); });
         addTest("UI", []() { return new UITests(); });
         addTest("Mouse", []() { return new MouseTests(); });
         addTest("MultiTouch", []() { return new MultiTouchTests(); });
@@ -129,8 +137,6 @@ public:
 #if (AX_TARGET_PLATFORM == AX_PLATFORM_IOS || AX_TARGET_PLATFORM == AX_PLATFORM_ANDROID)
         addTest("Vibrate", []() { return new VibrateTests(); });
 #endif
-        //       addTest("Zwoptex Deprecrated, will be removed in release axmol-2.2.0 (see #1602)", []() { return new
-        //       ZwoptexTests(); });
         addTest("SpriteFrameCache", []() { return new SpriteFrameCacheTests(); });  // TODO
 #if (AX_TARGET_PLATFORM == AX_PLATFORM_MAC || AX_TARGET_PLATFORM == AX_PLATFORM_WIN32 || \
      AX_TARGET_PLATFORM == AX_PLATFORM_LINUX)
@@ -148,16 +154,15 @@ TestController::TestController() : _stopAutoTest(true), _isRunInBackground(false
     _rootTestList->runThisTest();
     _director = Director::getInstance();
 
-    _touchListener               = EventListenerTouchOneByOne::create();
-    _touchListener->onTouchBegan = AX_CALLBACK_2(TestController::blockTouchBegan, this);
-    _touchListener->setSwallowTouches(true);
+    _pointerListener                = PointerEventListener::create();
+    _pointerListener->onPointerDown = AX_CALLBACK_1(TestController::blockTouchBegan, this);
 
-    _director->getEventDispatcher()->addEventListenerWithFixedPriority(_touchListener, -200);
+    _director->getEventDispatcher()->addEventListenerWithFixedPriority(_pointerListener, -200);
 }
 
 TestController::~TestController()
 {
-    _director->getEventDispatcher()->removeEventListener(_touchListener);
+    _director->getEventDispatcher()->removeEventListener(_pointerListener);
 
     _rootTestList->release();
     _rootTestList = nullptr;
@@ -441,7 +446,7 @@ void TestController::destroyInstance()
     disableCrashCatch();
 }
 
-bool TestController::blockTouchBegan(Touch* touch, Event* event)
+bool TestController::blockTouchBegan(PointerEvent* /*event*/)
 {
     return !_stopAutoTest;
 }

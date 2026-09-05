@@ -29,7 +29,7 @@ THE SOFTWARE.
 #pragma once
 
 #include "axmol/base/Protocols.h"
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/base/Value.h"
 #include "axmol/2d/SpriteFrame.h"
 #include "axmol/2d/SpriteFrameCache.h"
@@ -1231,9 +1231,9 @@ public:
      * @param angle Angle of the sampled points to be rotated in degrees.
      */
     static EmissionShape createMaskShape(std::string_view maskId,
-                                         Vec2 pos          = Vec2::ZERO,
-                                         Vec2 overrideSize = Vec2::ZERO,
-                                         Vec2 scale        = Vec2::ONE,
+                                         Vec2 pos          = Vec2::zero,
+                                         Vec2 overrideSize = Vec2::zero,
+                                         Vec2 scale        = Vec2::one,
                                          float angle       = 0.0F);
 
     /** Adds an emission shape of type point to the system.

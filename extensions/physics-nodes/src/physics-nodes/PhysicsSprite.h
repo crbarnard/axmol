@@ -27,7 +27,7 @@
 #include "axmol/2d/Sprite.h"
 #include "extensions/ExtensionMacros.h"
 #include "extensions/ExtensionExport.h"
-#include "axmol/base/EventListenerCustom.h"
+#include "axmol/base/CustomEventListener.h"
 
 #include "box2d/box2d.h"
 
@@ -44,7 +44,7 @@ NS_AX_EXT_BEGIN
  - You can't enble both Chipmunk support and Box2d support at the same time. Only one can be enabled at compile time
  * @lua NA
  */
-class AX_EX_DLL PhysicsSprite : public Sprite
+class AX_EXT_API PhysicsSprite : public Sprite
 {
 public:
     static PhysicsSprite* create();
@@ -118,7 +118,7 @@ public:
 
 protected:
     const Vec2& getPosFromPhysics() const;
-    void afterUpdate(EventCustom* event);
+    void afterUpdate(CustomEvent* event);
 
 protected:
     bool _ignoreBodyRotation;
@@ -128,7 +128,7 @@ protected:
     float _PTMRatio;
 
     // Event for update synchronise physic transform
-    ax::EventListenerCustom* _syncTransform;
+    ax::CustomEventListener* _syncTransform;
 };
 
 NS_AX_EXT_END

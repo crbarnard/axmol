@@ -36,24 +36,21 @@ THE SOFTWARE.
 namespace ax
 {
 
-// sharedApplication pointer
-Application* Application::sm_pSharedApplication = nullptr;
-
 Application::Application() : _animationInterval(16666667)
 {
-    AX_ASSERT(!sm_pSharedApplication);
-    sm_pSharedApplication = this;
+    AX_ASSERT(!s_axmolApp);
+    s_axmolApp = this;
 }
 
 Application::~Application()
 {
-    AX_ASSERT(this == sm_pSharedApplication);
-    sm_pSharedApplication = nullptr;
+    AX_ASSERT(this == s_axmolApp);
+    s_axmolApp = nullptr;
 }
 
 int Application::run()
 {
-    initContextAttrs();
+    applicationWillLaunch();
     // Initialize instance and axmol.
     if (!applicationDidFinishLaunching())
     {
@@ -72,8 +69,9 @@ int Application::run()
     {
         lastTime = std::chrono::steady_clock::now();
 
+        director->performFrameBoundaryTasks();
+
         director->renderFrame();
-        renderView->pollEvents();
 
         auto interval = std::chrono::steady_clock::now() - lastTime;
         if (interval < _animationInterval)
@@ -122,15 +120,6 @@ bool Application::openURL(std::string_view url)
 {
     std::string op = std::string("xdg-open '").append(url).append("'");
     return system(op.c_str()) == 0;
-}
-
-//////////////////////////////////////////////////////////////////////////
-// static member function
-//////////////////////////////////////////////////////////////////////////
-Application* Application::getInstance()
-{
-    AX_ASSERT(sm_pSharedApplication);
-    return sm_pSharedApplication;
 }
 
 const char* Application::getCurrentLanguageCode()

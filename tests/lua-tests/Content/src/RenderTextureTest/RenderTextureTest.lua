@@ -8,11 +8,15 @@ local function RenderTextureSave()
     local ret = createTestLayer("Touch the screen",
                                 "Press 'Save Image' to create an snapshot of the render texture")
     local s = ax.Director:getInstance():getCanvasSize()
+    local targetSp = nil
     local target = nil
+    local targetPass = nil
     local counter = 0
     local brushes = {}
     local function clearImage(tag, pSender)
-        target:clear(math.random(), math.random(), math.random(), math.random())
+        targetPass:begin()
+        targetPass:clearColor(ax.color(math.random(), math.random(), math.random(), math.random()))
+        targetPass:endToLua()
     end
 
     local function saveImage(tag, pSender)
@@ -39,28 +43,30 @@ local function RenderTextureSave()
 
     local function onNodeEvent(event)
         if event == "exit" then
-            target:release()
+            targetPass:release()
+            targetSp:removeFromParent()
             ax.Director:getInstance():getTextureCache():removeUnusedTextures()
         end
     end
 
-    ret:registerScriptHandler(onNodeEvent)
+    ret:setLifecycleCallback(onNodeEvent)
 
     -- create a render texture, this is what we are going to draw into
-    target = ax.RenderTexture:create(s.width, s.height, ax.TEXTURE_PF_RGBA8)
-    target:retain()
-    target:setPosition(ax.p(s.width / 2, s.height / 2))
-    target:setAnchorPoint(ax.p(0.5, 0.5))
+    target = ax.RenderTexture:createForCanvas(s, ax.TEXTURE_PF_RGBA8)
+    local targetSp = ax.Sprite:createWithTexture(target)
+    targetPass = ax.RenderTexturePass:obtain(target)
+    targetSp:setPosition(ax.p(s.width / 2, s.height / 2))
+    targetSp:setAnchorPoint(ax.p(0.5, 0.5))
 
     -- note that the render texture is a ax.Node, and contains a sprite of its texture for convenience,
     -- so we can just parent it to the scene like any other ax.Node
-    ret:addChild(target, -1)
+    ret:addChild(targetSp, -1)
 
-    local function onTouchesMoved(touches, event)
-        local start = touches[1]:getLocation()
-        local ended = touches[1]:getPreviousLocation()
+    local function onPointerMove(event)
+        local start = event:getWorldPoint()
+    local ended = event:getPrevWorldPoint()
 
-        target:begin()
+        targetPass:begin()
 
         local distance = ax.pGetDistance(start, ended)
         if distance > 1 then
@@ -93,21 +99,21 @@ local function RenderTextureSave()
         end
 
         -- finish drawing and return context back to the screen
-        target:endToLua()
+        targetPass:endToLua()
     end
 
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(onTouchesMoved,ax.Handler.EVENT_TOUCHES_MOVED )
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerMove = onPointerMove
     local eventDispatcher = ret:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, ret)
     -- Save Image menu
     ax.MenuItemFont:setFontSize(16)
     local item1 = ax.MenuItemFont:create("Save Image")
-    item1:setAnchorPoint(1, 1)
+    item1:setAnchorPoint(ax.p(1, 1))
     item1:setPosition(VisibleRect:rightTop().x, VisibleRect:rightTop().y)
     item1:registerScriptTapHandler(saveImage)
     local item2 = ax.MenuItemFont:create("Clear")
-    item2:setAnchorPoint(1, 1)
+    item2:setAnchorPoint(ax.p(1, 1))
     item2:setPosition(VisibleRect:rightTop().x, VisibleRect:rightTop().y - item1:getContentSize().height)
     item2:registerScriptTapHandler(clearImage)
     local menu = ax.Menu:create(item1, item2)

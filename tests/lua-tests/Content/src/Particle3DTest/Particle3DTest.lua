@@ -6,6 +6,7 @@ local function baseInit(self)
     Helper.subtitleLabel:setString(self:subtitle())
 
     self._angle = 0
+    self._pointerDown = false
 
     local targetPlatform = ax.Application:getInstance():getTargetPlatform()
 
@@ -19,25 +20,29 @@ local function baseInit(self)
     self._camera:setCameraFlag(ax.CameraFlag.USER1)
     self:addChild(self._camera)
 
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(function (touches, event)
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerDown = function(event)
+        self._pointerDown = true
+        return true
+    end
 
-    end,ax.Handler.EVENT_TOUCHES_BEGAN)
-
-    listener:registerScriptHandler(function (touches, event)
-        if #touches ~= 0 then
-            local touch = touches[1]
-            local delta = touch:getDelta()
+    listener.onPointerMove = function(event)
+        if self._pointerDown and event ~= nil and self._camera ~= nil then
+            local delta = ax.pSub(event:getPoint(), event:getPrevPoint())
 
             self._angle = self._angle - delta.x * math.pi / 180
-            self._camera:setPosition3D(ax.vec3(100.0 *  math.sin(math.deg(self._angle)), 0.0, 100.0 * math.cos(math.deg(self._angle))))
+            self._camera:setPosition3D(ax.vec3(100.0 * math.sin(self._angle), 0.0, 100.0 * math.cos(self._angle)))
             self._camera:lookAt(ax.vec3(0.0, 0.0, 0.0), ax.vec3(0.0, 1.0, 0.0))
         end
-    end,ax.Handler.EVENT_TOUCHES_MOVED)
+    end
 
-    listener:registerScriptHandler(function (touches, event)
+    listener.onPointerUp = function(event)
+        self._pointerDown = false
+    end
 
-    end,ax.Handler.EVENT_TOUCHES_ENDED)
+    listener.onPointerCancel = function(event)
+        self._pointerDown = false
+    end
 
     local eventDispatcher = self:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, self)
@@ -50,7 +55,7 @@ local function baseInit(self)
     self._particleLab:setAnchorPoint(ax.p(0.0, 0.0))
     self:addChild(self._particleLab)
 
-    self:scheduleUpdateWithPriorityLua(function(dt)
+    self:onUpdate(function(dt)
         local ps = self:getChildByTag(PARTICLE_SYSTEM_TAG)
         if nil ~= ps then
             local count = 0
@@ -65,9 +70,9 @@ local function baseInit(self)
             local str = string.format("Particle Count: %d", count)
             self._particleLab:setString(str)
         end
-    end, 0)
+    end)
 
-    self:registerScriptHandler(function (event)
+    self:setLifecycleCallback(function (event)
         if event == "enter" then
             self:onEnter()
         elseif event == "exit" then

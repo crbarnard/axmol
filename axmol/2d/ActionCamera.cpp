@@ -27,7 +27,7 @@ THE SOFTWARE.
 ****************************************************************************/
 
 #include "axmol/2d/ActionCamera.h"
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/platform/StdC.h"
 
 namespace ax
@@ -94,7 +94,7 @@ void ActionCamera::updateTransform()
 
     bool needsTranslation = !anchorPoint.isZero();
 
-    Mat4 mv = Mat4::IDENTITY;
+    Mat4 mv = Mat4::identity;
 
     if (needsTranslation)
     {

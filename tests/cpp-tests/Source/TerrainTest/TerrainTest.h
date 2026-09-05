@@ -28,7 +28,7 @@
 
 #    include "axmol/3d/MeshRenderer.h"
 #    include "axmol/3d/Terrain.h"
-#    include "axmol/2d/Camera.h"
+#    include "axmol/scene/Camera.h"
 #    include "axmol/2d/Action.h"
 
 DEFINE_TEST_SUITE(TerrainTests);
@@ -46,7 +46,7 @@ public:
     TerrainSimple();
     virtual std::string title() const override;
     virtual std::string subtitle() const override;
-    void onTouchesMoved(const std::vector<ax::Touch*>& touches, ax::Event* event);
+    void onPointerMove(ax::PointerEvent* event);
     ax::Terrain* _terrain;
 
 protected:
@@ -89,13 +89,15 @@ public:
     TerrainWalkThru();
     virtual std::string title() const override;
     virtual std::string subtitle() const override;
-    void onTouchesBegan(const std::vector<ax::Touch*>& touches, ax::Event* event);
-    void onTouchesEnd(const std::vector<ax::Touch*>& touches, ax::Event* event);
+    bool onPointerDown(ax::PointerEvent* event);
+    void onTouchesEnd(ax::PointerEvent* event);
 
 protected:
     ax::Camera* _camera;
     ax::Terrain* _terrain;
     Player* _player;
+
+    bool _dragging = false;
 };
 
 class TerrainWithLightMap : public TerrainTestDemo
@@ -105,7 +107,7 @@ public:
     TerrainWithLightMap();
     virtual std::string title() const override;
     virtual std::string subtitle() const override;
-    void onTouchesMoved(const std::vector<ax::Touch*>& touches, ax::Event* event);
+    void onPointerMove(ax::PointerEvent* event);
 
 protected:
     ax::Terrain* _terrain;

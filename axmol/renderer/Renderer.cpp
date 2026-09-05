@@ -40,15 +40,16 @@
 #include "axmol/base/Environment.h"
 #include "axmol/base/Director.h"
 #include "axmol/base/EventDispatcher.h"
-#include "axmol/base/EventListenerCustom.h"
+#include "axmol/base/CustomEventListener.h"
 #include "axmol/base/EventType.h"
-#include "axmol/2d/Camera.h"
-#include "axmol/2d/Scene.h"
+#include "axmol/scene/Camera.h"
+#include "axmol/scene/Scene.h"
 #include "xxhash/xxhash.h"
 
 #include "axmol/rhi/axmol-rhi.h"
 #include "axmol/rhi/RenderTarget.h"
-#include "axmol/rhi/DriverContext.h"
+#include "axmol/rhi/GraphicsCore.h"
+#include "axmol/base/Profiling.h"
 
 namespace ax
 {
@@ -190,7 +191,6 @@ Renderer::~Renderer()
 
     free(_triBatchesToDraw);
 
-    AX_SAFE_RELEASE(_offscreenRT);
     AX_SAFE_RELEASE(_depthStencilState);
     AX_SAFE_RELEASE(_renderPipeline);
     AX_SAFE_RELEASE(_context);
@@ -205,7 +205,7 @@ void Renderer::init()
 
     auto driver        = axdrv;
     auto nativeDisplay = Director::getInstance()->getRenderView()->getNativeDisplay();
-    _context           = driver->createRenderContext(nativeDisplay);
+    _context           = driver->createGraphicsContext(nativeDisplay);
     _dsDesc.flags      = DepthStencilFlags::ALL;
     _currentRT = _defaultRT = _context->getScreenRenderTarget();
 
@@ -215,14 +215,7 @@ void Renderer::init()
     _depthStencilState = driver->createDepthStencilState();
     _context->setDepthStencilState(_depthStencilState);
 
-    _isModernRHI = !rhi::DriverContext::isOpenGL() && !rhi::DriverContext::isD3D11();
-}
-
-rhi::RenderTarget* Renderer::getOffscreenRenderTarget()
-{
-    if (_offscreenRT != nullptr)
-        return _offscreenRT;
-    return (_offscreenRT = axdrv->createRenderTarget());
+    _isModernRHI = !rhi::GraphicsCore::isOpenGL() && !rhi::GraphicsCore::isD3D11();
 }
 
 void Renderer::addCallbackCommand(std::function<void()> func, float globalZOrder)
@@ -414,6 +407,8 @@ void Renderer::doVisitRenderQueue(const std::vector<RenderCommand*>& renderComma
 
 void Renderer::render()
 {
+    AX_PROFILER_ZONE_SCOPED;
+
     // TODO: setup camera or MVP
     _isRendering = true;
 
@@ -446,6 +441,11 @@ void Renderer::endFrame()
     }
     _queuedTotalIndexCount  = 0;
     _queuedTotalVertexCount = 0;
+}
+
+void Renderer::submitCurrentFrameCommands(bool waitForCompletion)
+{
+    _context->submitCurrentFrameCommands(waitForCompletion);
 }
 
 void Renderer::clean()
@@ -806,9 +806,9 @@ bool Renderer::checkVisibility(const Mat4& transform, const Vec2& size)
     auto director = Director::getInstance();
     auto scene    = director->getRunningScene();
 
-    // If draw to Rendertexture, return true directly.
-    //  only cull the default camera. The culling algorithm is valid for default camera.
-    if (!scene || (scene->_defaultCamera != Camera::getVisitingCamera()))
+    // Legacy Renderer API can only cull against the running scene default camera.
+    auto camera = scene ? scene->_defaultCamera : nullptr;
+    if (!camera)
         return true;
 
     Rect visibleRect(director->getVisibleOrigin(), director->getVisibleSize());
@@ -818,7 +818,7 @@ bool Renderer::checkVisibility(const Mat4& transform, const Vec2& size)
     float hSizeY = size.height / 2;
     Vec3 v3p(hSizeX, hSizeY, 0);
     transform.transformPoint(&v3p);
-    Vec2 v2p = Camera::getVisitingCamera()->projectGL(v3p);
+    Vec2 v2p = camera->projectWorldToCanvas(v3p);
 
     // convert content size to world coordinates
     float wshw = std::max(fabsf(hSizeX * transform.m[0] + hSizeY * transform.m[4]),
@@ -835,16 +835,14 @@ bool Renderer::checkVisibility(const Mat4& transform, const Vec2& size)
     return ret;
 }
 
-void Renderer::readPixels(rhi::RenderTarget* rt,
-                          bool preserveAxisHint,
-                          std::function<void(const rhi::PixelBufferDesc&)> callback)
+void Renderer::readPixels(rhi::RenderTarget* rt, std::function<void(const rhi::PixelBufferDesc&)> callback)
 {
     assert(!!rt);
     // read pixels from screen, metal renderer backend: screen texture must not be a framebufferOnly
     if (rt == _defaultRT)
         _context->setFrameBufferOnly(false);
 
-    _context->readPixels(rt, preserveAxisHint, std::move(callback));
+    _context->readPixels(rt, std::move(callback));
 }
 
 void Renderer::updateSurface(SurfaceHandle surface, uint32_t width, uint32_t height)
@@ -872,7 +870,7 @@ void Renderer::beginRenderPass()
     _context->setViewport(_viewport.x, _viewport.y, _viewport.width, _viewport.height);
     _context->setCullMode(_cullMode);
     _context->setWinding(_winding);
-    _context->setScissorRect(_scissorState.isEnabled, _scissorState.rect.x, _scissorState.rect.y,
+    _context->setScissorRect(_scissorState.enabled, _scissorState.rect.x, _scissorState.rect.y,
                              _scissorState.rect.width, _scissorState.rect.height);
 }
 
@@ -954,12 +952,12 @@ ClearFlag Renderer::getClearFlag() const
 
 void Renderer::setScissorTest(bool enabled)
 {
-    _scissorState.isEnabled = enabled;
+    _scissorState.enabled = enabled;
 }
 
 bool Renderer::getScissorTest() const
 {
-    return _scissorState.isEnabled;
+    return _scissorState.enabled;
 }
 
 const ScissorRect& Renderer::getScissorRect() const
@@ -1053,20 +1051,16 @@ void Renderer::TriangleCommandBufferManager::createBuffer()
 
 void Renderer::pushStateBlock()
 {
-    StateBlock block;
-    block.depthTest  = getDepthTest();
-    block.depthWrite = getDepthWrite();
-    block.cullMode   = getCullMode();
-    _stateBlockStack.emplace_back(block);
+    _stateBlockStack.emplace(getDepthTest(), getDepthWrite(), getCullMode());
 }
 
 void Renderer::popStateBlock()
 {
-    auto& block = _stateBlockStack.back();
+    auto& block = _stateBlockStack.top();
     setDepthTest(block.depthTest);
     setDepthWrite(block.depthWrite);
     setCullMode(block.cullMode);
-    _stateBlockStack.pop_back();
+    _stateBlockStack.pop();
 }
 
 uint64_t Renderer::getCompletedFenceValue() const

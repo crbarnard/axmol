@@ -183,7 +183,7 @@ local function MenuLayerMainMenu()
         end
     end
 
-    ret:registerScriptHandler(onNodeEvent)
+    ret:setLifecycleCallback(onNodeEvent)
 
     return ret
 end
@@ -378,7 +378,7 @@ local function MenuLayer3()
         end
     end
 
-    ret:registerScriptHandler(onNodeEvent)
+    ret:setLifecycleCallback(onNodeEvent)
 
     return ret
 end
@@ -544,11 +544,11 @@ local function RemoveMenuItemWhenMove()
 
     menu:setPosition(ax.p(s.width/2, s.height/2))
 
-    local function onTouchBegan(touch, event)
+    local function onTouchBegan(event)
         return true
     end
 
-    local function onTouchMoved(touch, event)
+    local function onPointerMove(event)
         if item ~= nil then
             item:removeFromParent(true)
             --item:release()
@@ -556,9 +556,9 @@ local function RemoveMenuItemWhenMove()
         end
     end
 
-    local listener = ax.EventListenerTouchOneByOne:create()
-    listener:registerScriptHandler(onTouchBegan,ax.Handler.EVENT_TOUCH_BEGAN )
-    listener:registerScriptHandler(onTouchMoved,ax.Handler.EVENT_TOUCH_MOVED )
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerDown = onTouchBegan
+    listener.onPointerMove = onPointerMove
     local eventDispatcher = ret:getEventDispatcher()
     eventDispatcher:addEventListenerWithFixedPriority(listener, -129)
 
@@ -568,7 +568,7 @@ local function RemoveMenuItemWhenMove()
         end
     end
 
-    ret:registerScriptHandler(onNodeEvent)
+    ret:setLifecycleCallback(onNodeEvent)
 
     return ret
 end

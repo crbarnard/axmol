@@ -22,44 +22,44 @@
  THE SOFTWARE.
  ****************************************************************************/
 #include "axmol/rhi/vulkan/VertexLayoutVK.h"
-#include "axmol/rhi/vulkan/RenderContextVK.h"
+#include "axmol/rhi/vulkan/GraphicsContextVK.h"
 #include "axmol/base/Logging.h"
 
 namespace ax::rhi::vk
 {
 
-// Map VertexFormat to VkFormat
-static VkFormat toVkFormat(VertexFormat format, bool unorm)
+// Map VertexElementType to VkFormat
+static VkFormat toVkVertexFormat(VertexElementType format, bool unorm)
 {
     switch (format)
     {
-    case VertexFormat::FLOAT4:
+    case VertexElementType::FLOAT4:
         return VK_FORMAT_R32G32B32A32_SFLOAT;
-    case VertexFormat::FLOAT3:
+    case VertexElementType::FLOAT3:
         return VK_FORMAT_R32G32B32_SFLOAT;
-    case VertexFormat::FLOAT2:
+    case VertexElementType::FLOAT2:
         return VK_FORMAT_R32G32_SFLOAT;
-    case VertexFormat::FLOAT:
+    case VertexElementType::FLOAT:
         return VK_FORMAT_R32_SFLOAT;
 
-    case VertexFormat::INT4:
+    case VertexElementType::INT4:
         return VK_FORMAT_R32G32B32A32_SINT;
-    case VertexFormat::INT3:
+    case VertexElementType::INT3:
         return VK_FORMAT_R32G32B32_SINT;
-    case VertexFormat::INT2:
+    case VertexElementType::INT2:
         return VK_FORMAT_R32G32_SINT;
-    case VertexFormat::INT:
+    case VertexElementType::INT:
         return VK_FORMAT_R32_SINT;
 
-    case VertexFormat::USHORT4:
+    case VertexElementType::USHORT4:
         return unorm ? VK_FORMAT_R16G16B16A16_UNORM : VK_FORMAT_R16G16B16A16_UINT;
-    case VertexFormat::USHORT2:
+    case VertexElementType::USHORT2:
         return unorm ? VK_FORMAT_R16G16_UNORM : VK_FORMAT_R16G16_UINT;
 
-    case VertexFormat::UBYTE4:
+    case VertexElementType::UBYTE4:
         return unorm ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_UINT;
 
-    case VertexFormat::MAT4:
+    case VertexElementType::MAT4:
         return VK_FORMAT_R32G32B32A32_SFLOAT;
 
     default:
@@ -76,8 +76,8 @@ VertexLayoutImpl::VertexLayoutImpl(VertexLayoutDesc&& desc) : VertexLayout(std::
     for (auto& inputDesc : bindingsDesc)
     {
         VkVertexInputBindingDescription binding{};
-        binding.binding   = inputDesc.instanceStepRate ? RenderContextImpl::VI_INSTANCING_BINDING_INDEX
-                                                       : RenderContextImpl::VI_BINDING_INDEX;
+        binding.binding   = inputDesc.instanceStepRate ? GraphicsContextImpl::VI_INSTANCING_BINDING_INDEX
+                                                       : GraphicsContextImpl::VI_BINDING_INDEX;
         binding.stride    = inputDesc.instanceStepRate ? static_cast<uint32_t>(getInstanceStride())
                                                        : static_cast<uint32_t>(getStride());
         binding.inputRate = inputDesc.instanceStepRate ? VK_VERTEX_INPUT_RATE_INSTANCE : VK_VERTEX_INPUT_RATE_VERTEX;
@@ -88,12 +88,12 @@ VertexLayoutImpl::VertexLayoutImpl(VertexLayoutDesc&& desc) : VertexLayout(std::
             _bindings.push_back(binding);
 
         // Attribute descriptions
-        if (inputDesc.format != VertexFormat::MAT4)
+        if (inputDesc.format != VertexElementType::MAT4)
         {
             VkVertexInputAttributeDescription attr{};
             attr.location = inputDesc.index;
             attr.binding  = binding.binding;
-            attr.format   = toVkFormat(inputDesc.format, inputDesc.needToBeNormallized);
+            attr.format   = toVkVertexFormat(inputDesc.format, inputDesc.needToBeNormallized);
             attr.offset   = inputDesc.offset;
             _attributes.push_back(attr);
         }

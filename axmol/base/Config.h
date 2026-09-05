@@ -200,15 +200,6 @@ THE SOFTWARE.
 #    define AX_LABEL_DEBUG_DRAW 0
 #endif
 
-/** @def AX_SPRITEBATCHNODE_DEBUG_DRAW
- * If enabled, all subclasses of Sprite that are rendered using an SpriteBatchNode draw a bounding box.
- * Useful for debugging purposes only. It is recommended to leave it disabled.
- * To enable set it to a value different than 0. Disabled by default.
- */
-#ifndef AX_SPRITEBATCHNODE_DEBUG_DRAW
-#    define AX_SPRITEBATCHNODE_DEBUG_DRAW 0
-#endif
-
 /** @def AX_LABELBMFONT_DEBUG_DRAW
  * If enabled, all subclasses of LabelBMFont will draw a bounding box.
  * Useful for debugging purposes only. It is recommended to leave it disabled.
@@ -216,15 +207,6 @@ THE SOFTWARE.
  */
 #ifndef AX_LABELBMFONT_DEBUG_DRAW
 #    define AX_LABELBMFONT_DEBUG_DRAW 0
-#endif
-
-/** @def AX_LABELATLAS_DEBUG_DRAW
- * If enabled, all subclasses of LabeltAtlas will draw a bounding box
- * Useful for debugging purposes only. It is recommended to leave it disabled.
- * To enable set it to a value different than 0. Disabled by default.
- */
-#ifndef AX_LABELATLAS_DEBUG_DRAW
-#    define AX_LABELATLAS_DEBUG_DRAW 0
 #endif
 
 /** @def AX_NODE_DEBUG_VERIFY_EVENT_LISTENERS
@@ -316,6 +298,28 @@ THE SOFTWARE.
 
 #ifndef AX_REDUCE_PAUSED_CPU_USAGE
 #    define AX_REDUCE_PAUSED_CPU_USAGE 0
+#endif
+
+/** @def AX_DRAWNODE_PRE_CALCULATING_VERTICES
+ * Performance optimizations for circle rendering in DrawNode by pre-calculating vertices
+ */
+#ifndef AX_DRAWNODE_PRE_CALCULATING_VERTICES
+#    define AX_DRAWNODE_PRE_CALCULATING_VERTICES 36
+#endif
+
+/** @def AX_DRAWNODE_PRE_CALCULATING_RADIUS
+ * Default radius for performance optimizations for circle rendering in DrawNode by pre-calculating vertices
+ */
+#ifndef AX_DRAWNODE_PRE_CALCULATING_RADIUS
+#    define AX_DRAWNODE_PRE_CALCULATING_RADIUS 100
+#endif
+
+/** @def AX_DRAWNODE_FAST_LINE2CENTER
+ * 1 = DrawNode 3.0 faster drawSolidCircle with "line2Center"
+ * 0 = DrawNode 2.0 drawLine methode (slower)
+ */
+#ifndef AX_DRAWNODE_FAST_LINE2CENTER
+#    define AX_DRAWNODE_FAST_LINE2CENTER 0
 #endif
 
 /// @name namespace ax

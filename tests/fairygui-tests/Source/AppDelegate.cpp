@@ -21,7 +21,7 @@ AppDelegate::~AppDelegate()
 
 // if you want a different context, modify the value of contextAttrs
 // it will affect all platforms
-void AppDelegate::initContextAttrs()
+void AppDelegate::applicationWillLaunch()
 {
     // set context attributes: red,green,blue,alpha,depth,stencil
     ContextAttrs contextAttrs = { 8, 8, 8, 8, 24, 8 };
@@ -41,10 +41,11 @@ bool AppDelegate::applicationDidFinishLaunching() {
     auto director = Director::getInstance();
     auto renderView = director->getRenderView();
     if (!renderView) {
-#if defined(AX_PLATFORM_PC) || (AX_TARGET_PLATFORM == AX_PLATFORM_WASM)
-        renderView = RenderViewImpl::createWithRect("Examples", ax::Rect(0, 0, 1280, 720));
+        std::string title = "fairygui-tests";
+#if defined(AX_PLATFORM_GLFW)
+        renderView = RenderView::createWithRect(title, ax::Rect(0, 0, 1280, 720), 1.0f, true);
 #else
-        renderView = RenderViewImpl::create("Examples");
+        renderView = RenderView::create(title);
 #endif
         director->setRenderView(renderView);
     }
@@ -92,12 +93,12 @@ bool AppDelegate::applicationDidFinishLaunching() {
 
 // This function will be called when the app is inactive. Note, when receiving a phone call it is invoked.
 void AppDelegate::applicationDidEnterBackground() {
-    Director::getInstance()->stopAnimation();
+    Director::getInstance()->deactivate();
     AudioEngine::pauseAll();
 }
 
 // this function will be called when the app is active again
 void AppDelegate::applicationWillEnterForeground() {
-    Director::getInstance()->startAnimation();
+    Director::getInstance()->activate();
     AudioEngine::resumeAll();
 }

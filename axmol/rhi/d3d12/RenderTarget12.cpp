@@ -22,13 +22,13 @@
  THE SOFTWARE.
  ****************************************************************************/
 #include "axmol/rhi/d3d12/RenderTarget12.h"
-#include "axmol/rhi/d3d12/RenderContext12.h"
+#include "axmol/rhi/d3d12/GraphicsContext12.h"
 #include "axmol/base/Logging.h"
 
 namespace ax::rhi::d3d12
 {
 
-RenderTargetImpl::RenderTargetImpl(DriverImpl* driver, bool defaultRenderTarget)
+RenderTargetImpl::RenderTargetImpl(GraphicsDeviceImpl* driver, bool defaultRenderTarget)
     : RenderTarget(defaultRenderTarget), _driver(driver)
 {
     if (_defaultRenderTarget)
@@ -43,7 +43,8 @@ void RenderTargetImpl::cleanupResources()
     // RTVs
     for (auto i = 0; i < _rtvsDescriptors.size(); ++i)
     {
-        _driver->queueDisposal(_rtvsDescriptors[i], DisposableResource::Type::RenderTargetView, _lastFenceValue);
+        if (_rtvsDescriptors[i])  // rtv already reset in render pass
+            _driver->queueDisposal(_rtvsDescriptors[i], DisposableResource::Type::RenderTargetView, _lastFenceValue);
     }
     _rtvsDescriptors.clear();
 
@@ -91,7 +92,11 @@ void RenderTargetImpl::beginRenderPass(ID3D12GraphicsCommandList* cmd,
             {
                 auto texImpl        = static_cast<TextureImpl*>(_color[i].texture);
                 _rtvsDescriptors[i] = _driver->allocateDescriptor(DisposableResource::Type::RenderTargetView);
-                device->CreateRenderTargetView(texImpl->internalHandle().resource.Get(), nullptr,
+                auto fmtInfo        = dxutils::toDxgiFormatInfo(texImpl->getPixelFormat());
+                D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
+                rtvDesc.Format        = fmtInfo->format;
+                rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+                device->CreateRenderTargetView(texImpl->internalHandle().resource.Get(), &rtvDesc,
                                                _rtvsDescriptors[i]->cpu);
 
                 _rtvHandles[i] = _rtvsDescriptors[i]->cpu;
@@ -114,9 +119,8 @@ void RenderTargetImpl::beginRenderPass(ID3D12GraphicsCommandList* cmd,
                 _dsvDescriptor = _driver->allocateDescriptor(DisposableResource::Type::DepthStencilView);
 
                 D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
-                dsvDesc.Format             = DXGI_FORMAT_D24_UNORM_S8_UINT;
-                dsvDesc.ViewDimension      = D3D12_DSV_DIMENSION_TEXTURE2D;
-                dsvDesc.Texture2D.MipSlice = 0;
+                dsvDesc.Format        = DXGI_FORMAT_D24_UNORM_S8_UINT;
+                dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
                 device->CreateDepthStencilView(texImpl->internalHandle().resource.Get(), &dsvDesc, _dsvDescriptor->cpu);
 
                 _dsvHandle = _dsvDescriptor->cpu;
@@ -228,7 +232,7 @@ void RenderTargetImpl::endRenderPass(ID3D12GraphicsCommandList* cmd, uint32_t im
             if (!texImpl)
                 break;
 
-            texImpl->transitionState(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            texImpl->transitionState(cmd, texImpl->getRenderTargetFinalState());
         }
     }
 }
@@ -244,7 +248,7 @@ bool RenderTargetImpl::rebuildSwapchainBuffers(IDXGISwapChain4* swapchain,
         return false;
     }
 
-    static_assert(INITIAL_COLOR_CAPACITY >= RenderContextImpl::SWAPCHAIN_BUFFER_COUNT,
+    static_assert(INITIAL_COLOR_CAPACITY >= GraphicsContextImpl::SWAPCHAIN_BUFFER_COUNT,
                   "RenderTargetImpl color attachment array too small for swapchain buffers");
 
     // Release references to the swapchain back buffer for we can ResizeBuffers
@@ -253,7 +257,7 @@ bool RenderTargetImpl::rebuildSwapchainBuffers(IDXGISwapChain4* swapchain,
     if (swapchainFlags)
     {
         _driver->destroyStaleResources();
-        auto hr = swapchain->ResizeBuffers(RenderContextImpl::SWAPCHAIN_BUFFER_COUNT, width, height,
+        auto hr = swapchain->ResizeBuffers(GraphicsContextImpl::SWAPCHAIN_BUFFER_COUNT, width, height,
                                            DEFAULT_SWAPCHAIN_FORMAT, swapchainFlags.value());
         if (FAILED(hr))
         {
@@ -263,7 +267,7 @@ bool RenderTargetImpl::rebuildSwapchainBuffers(IDXGISwapChain4* swapchain,
     }
 
     // Create color attachments wrapping swapchain buffers
-    const UINT colorAttachmentCount = RenderContextImpl::SWAPCHAIN_BUFFER_COUNT;
+    const UINT colorAttachmentCount = GraphicsContextImpl::SWAPCHAIN_BUFFER_COUNT;
     _color.resize(colorAttachmentCount);
     _rtvsDescriptors.resize(colorAttachmentCount);
     _rtvHandles.resize(colorAttachmentCount);

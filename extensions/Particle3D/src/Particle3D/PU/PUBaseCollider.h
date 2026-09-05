@@ -27,13 +27,13 @@
 #pragma once
 
 #include "Particle3D/PU/PUAffector.h"
-#include "axmol/3d/AABB.h"
+#include "axmol/math/AABB.h"
 
 namespace ax
 {
 
 struct PUParticle3D;
-class AX_EX_DLL PUBaseCollider : public PUAffector
+class AX_EXT_API PUBaseCollider : public PUAffector
 {
 public:
     /** Determines how a particle collision should be determined. IT_POINT means that the position of

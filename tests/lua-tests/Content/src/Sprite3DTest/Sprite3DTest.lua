@@ -26,11 +26,9 @@ local attributeNames =
 local Sprite3DBasicTest = {}
 Sprite3DBasicTest.__index = Sprite3DBasicTest
 
-function Sprite3DBasicTest.onTouchesEnd(touches, event)
-    for i = 1,#(touches) do
-        local location = touches[i]:getLocation()
-        Sprite3DBasicTest.addNewSpriteWithCoords(Helper.currentLayer, location.x, location.y )
-    end
+function Sprite3DBasicTest.onTouchesEnd(event)
+    local location = event:getWorldPoint()
+    Sprite3DBasicTest.addNewSpriteWithCoords(Helper.currentLayer, location.x, location.y )
 end
 
 function Sprite3DBasicTest.addNewSpriteWithCoords(parent,x,y)
@@ -67,8 +65,8 @@ function Sprite3DBasicTest.create()
     Helper.titleLabel:setString("Testing Sprite3D")
     Helper.subtitleLabel:setString("Tap screen to add more sprites")
 
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(Sprite3DBasicTest.onTouchesEnd,ax.Handler.EVENT_TOUCHES_ENDED )
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerUp = Sprite3DBasicTest.onTouchesEnd
 
     local eventDispatcher = layer:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, layer)
@@ -104,31 +102,31 @@ function Sprite3DHitTest.create()
     sprite2:runAction(ax.RepeatForever:create(ax.RotateBy:create(3, -360)))
     layer:addChild(sprite2)
 
-    local listener = ax.EventListenerTouchOneByOne:create()
-    listener:setSwallowTouches(true)
-    listener:registerScriptHandler(function (touch, event)
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerDown = function(event)
         local target = event:getCurrentTarget()
         local rect   = target:getBoundingBox()
-        if ax.rectContainsPoint(rect, touch:getLocation()) then
-            print(string.format("sprite3d began... x = %f, y = %f", touch:getLocation().x, touch:getLocation().y))
+        if ax.rectContainsPoint(rect, event:getWorldPoint()) then
+            print(string.format("sprite3d began... x = %f, y = %f", event:getWorldPoint().x, event:getWorldPoint().y))
             target:setOpacity(100)
             return true
         end
 
         return false
-    end,ax.Handler.EVENT_TOUCH_BEGAN )
+    end
 
-    listener:registerScriptHandler(function (touch, event)
+    listener.onPointerMove = function(event)
         local target = event:getCurrentTarget()
         local x,y = target:getPosition()
-        target:setPosition(ax.p(x + touch:getDelta().x, y + touch:getDelta().y))
-    end, ax.Handler.EVENT_TOUCH_MOVED)
+        local delta = ax.pSub(event:getPoint(), event:getPrevPoint())
+        target:setPosition(ax.p(x + delta.x, y + delta.y))
+    end
 
-    listener:registerScriptHandler(function (touch, event)
+    listener.onPointerUp = function(event)
         local target = event:getCurrentTarget()
         print("sprite3d onTouchEnd")
         target:setOpacity(255)
-    end, ax.Handler.EVENT_TOUCH_ENDED)
+    end
 
     local eventDispatcher = layer:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, sprite1)
@@ -145,11 +143,9 @@ Sprite3DWithSkinTest.__index = Sprite3DWithSkinTest
 Sprite3DWithSkinTest._animateQuality = ax.Animate3DQuality.QUALITY_HIGH
 Sprite3DWithSkinTest._sprites = {}
 
-function Sprite3DWithSkinTest.onTouchesEnd(touches, event)
-    for i = 1,#(touches) do
-        local location = touches[i]:getLocation()
-        Sprite3DWithSkinTest.addNewSpriteWithCoords(Helper.currentLayer, location.x, location.y )
-    end
+function Sprite3DWithSkinTest.onTouchesEnd(event)
+    local location = event:getWorldPoint()
+    Sprite3DWithSkinTest.addNewSpriteWithCoords(Helper.currentLayer, location.x, location.y )
 end
 
 function Sprite3DWithSkinTest.addNewSpriteWithCoords(parent,x,y)
@@ -196,8 +192,8 @@ function Sprite3DWithSkinTest.create()
     Helper.titleLabel:setString("Testing Sprite3D for animation from c3t")
     Helper.subtitleLabel:setString("Tap screen to add more sprite3D")
 
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(Sprite3DWithSkinTest.onTouchesEnd,ax.Handler.EVENT_TOUCHES_ENDED )
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerUp = Sprite3DWithSkinTest.onTouchesEnd
 
     local eventDispatcher = layer:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, layer)
@@ -253,10 +249,10 @@ local Animate3DTest = {}
 Animate3DTest.__index = Animate3DTest
 
 function Animate3DTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, Animate3DTest)
     return target
@@ -277,30 +273,28 @@ function Animate3DTest:onEnter()
         self._sprite:stopActionByTag(101)
         self._state = State.HURT_TO_SWIMMING
     end
-    local function onTouchesEnd(touches, event )
-        for i = 1,#(touches) do
-            local location = touches[i]:getLocation()
-            if self._sprite ~= nil then
-                local len = ax.pGetLength(ax.pSub(ax.p(self._sprite:getPosition()), location))
-                if len < 40 then
-                    if self._state == State.SWIMMING then
-                        self._sprite:runAction(self._hurt)
-                        local delay = ax.DelayTime:create(self._hurt:getDuration() - 0.1)
-                        local seq = ax.Sequence:create(delay, ax.CallFunc:create(renewCallBack))
-                        seq:setTag(101)
-                        self._sprite:runAction(seq)
-                        self._state = State.SWIMMING_TO_HURT
-                    end
-                    return
+    local function onTouchesEnd(event)
+        local location = event:getWorldPoint()
+        if self._sprite ~= nil then
+            local len = ax.pGetLength(ax.pSub(ax.p(self._sprite:getPosition()), location))
+            if len < 40 then
+                if self._state == State.SWIMMING then
+                    self._sprite:runAction(self._hurt)
+                    local delay = ax.DelayTime:create(self._hurt:getDuration() - 0.1)
+                    local seq = ax.Sequence:create(delay, ax.CallFunc:create(renewCallBack))
+                    seq:setTag(101)
+                    self._sprite:runAction(seq)
+                    self._state = State.SWIMMING_TO_HURT
                 end
+                return
             end
         end
     end
 
     self:addSprite3D()
 
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(onTouchesEnd,ax.Handler.EVENT_TOUCHES_ENDED )
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerUp = onTouchesEnd
 
     local eventDispatcher = self:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, self)
@@ -329,7 +323,7 @@ function Animate3DTest:onEnter()
         end
     end
 
-    self:scheduleUpdateWithPriorityLua(update,0)
+    self:onUpdate(update)
 end
 
 function Animate3DTest:onExit()
@@ -397,7 +391,7 @@ function Animate3DTest.create()
                 layer:onExit()
             end
         end
-        layer:registerScriptHandler(onNodeEvent)
+        layer:setLifecycleCallback(onNodeEvent)
     end
 
     return layer
@@ -442,8 +436,8 @@ function AttachmentTest.create()
 
     addNewSpriteWithCoords(ax.p(size.width / 2, size.height / 2))
 
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(function (touches, event)
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerUp = function(event)
         if _hasWeapon then
             _sprite:removeAllAttachNode()
         else
@@ -452,7 +446,7 @@ function AttachmentTest.create()
         end
 
         _hasWeapon = not _hasWeapon
-    end,ax.Handler.EVENT_TOUCHES_ENDED)
+    end
 
     local eventDispatcher = layer:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, layer)
@@ -467,10 +461,10 @@ local Sprite3DReskinTest = {}
 Sprite3DReskinTest.__index = Sprite3DReskinTest
 
 function Sprite3DReskinTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, Sprite3DReskinTest)
     return target
@@ -489,10 +483,10 @@ function Sprite3DReskinTest:init()
 
     self:addNewSpriteWithCoords(ax.p(size.width / 2, size.height / 2))
 
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(function (touches, event)
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerUp = function(event)
 
-    end,ax.Handler.EVENT_TOUCHES_ENDED)
+    end
 
     local eventDispatcher = self:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, self)
@@ -678,42 +672,38 @@ end)
 
 function Sprite3DWithOBBPerfromanceTest:ctor()
     self._obb = {}
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(function (touches, event)
-        for i,touch in ipairs(touches) do
-            local location = touch:getLocationInView()
-            if nil ~= self._obb and #self._obb > 0 then
-                self._intersetList = {}
-                local ray = ax.Ray:new()
-                self:calculateRayByLocationInView(ray, location)
-
-                for idx,value in ipairs(self._obb) do
-                    if ray:intersects(value) then
-                        table.insert(self._intersetList, idx)
-                        return
-                    end
-                end
-            end
-        end
-    end,ax.Handler.EVENT_TOUCHES_BEGAN)
-
-    listener:registerScriptHandler(function (touches, event)
-
-    end,ax.Handler.EVENT_TOUCHES_ENDED)
-
-    listener:registerScriptHandler(function (touches, event)
-        for i,touch in ipairs(touches) do
-            local location = touch:getLocation()
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerDown = function(event)
+        local location = event:getPoint()
+        if nil ~= self._obb and #self._obb > 0 then
+            self._intersetList = {}
+            local ray = ax.Ray:new()
+            self:calculateRayByLocationInView(ray, location)
 
             for idx,value in ipairs(self._obb) do
-                for lstIdx,lstValue in ipairs(self._intersetList) do
-                    if idx == lstValue then
-                        self._obb[idx]._center = ax.vec3(location.x,location.y,0)
-                    end
+                if ray:intersects(value) then
+                    table.insert(self._intersetList, idx)
+                    return
                 end
             end
         end
-    end,ax.Handler.EVENT_TOUCHES_MOVED)
+    end
+
+    listener.onPointerUp = function(event)
+
+    end
+
+    listener.onPointerMove = function(event)
+        local location = event:getWorldPoint()
+
+        for idx,value in ipairs(self._obb) do
+            for lstIdx,lstValue in ipairs(self._intersetList) do
+                if idx == lstValue then
+                    self._obb[idx]._center = ax.vec3(location.x,location.y,0)
+                end
+            end
+        end
+    end
 
     local eventDispatcher = self:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, self)
@@ -752,7 +742,7 @@ function Sprite3DWithOBBPerfromanceTest:ctor()
     self:addChild(self._labelCubeCount)
 
     self:addOBBWithCount(10)
-    self:scheduleUpdateWithPriorityLua(function(dt)
+    self:onUpdate(function(dt)
         self._labelCubeCount:setString(string.format("%u cubes", #self._obb))
         if nil ~= self._drawDebug then
             self._drawDebug:clear()
@@ -795,7 +785,7 @@ function Sprite3DWithOBBPerfromanceTest:ctor()
 
             end
         end
-    end, 0)
+    end)
 end
 
 function Sprite3DWithOBBPerfromanceTest:addOBBWithCount( value )
@@ -846,7 +836,7 @@ end
 function Sprite3DWithOBBPerfromanceTest:calculateRayByLocationInView(ray, location)
     local dir = ax.Director:getInstance()
     local view = dir:getCanvasSize()
-    local mat = ax.mat4.new(dir:getMatrix(ax.MATRIX_STACK_TYPE.PROJECTION))
+    local mat = ax.mat4.new(dir:getProjectionMatrix())
     local src = ax.vec3(location.x, location.y, -1)
     local nearPoint = {}
     view, src, nearPoint = self:unproject(mat, view, src, nearPoint)
@@ -941,7 +931,7 @@ function Sprite3DMirrorTest.create()
     sprite = ax.Sprite3D:create(fileName)
     sprite:setScale(5)
     sprite:setScaleX(-5)
-    sprite:setCullFace(ccb.CullMode.FRONT)
+    sprite:setCullFace(axr.CullMode.FRONT)
     sprite:setRotation3D({x = 0, y = 180,z = 0})
     layer:addChild(sprite)
     sprite:setPosition( ax.p( size.width/2 + 80, size.height/2))
@@ -979,7 +969,7 @@ function AsyncLoadSprite3DTest:init()
     Helper.titleLabel:setString(self:title())
     Helper.subtitleLabel:setString(self:subtitle())
 
-    self:registerScriptHandler(function (event)
+    self:setLifecycleCallback(function (event)
         if event == "enter" then
             self:onEnter()
         elseif event == "exit" then
@@ -1008,15 +998,9 @@ function AsyncLoadSprite3DTest:onEnter()
     local item1 = ax.MenuItemLabel:create(label1)
 
     function menuCallback_asyncLoadSprite(tag, sender)
-        --Note that you must stop the tasks before leaving the scene.
-        ax.AsyncTaskPool:getInstance():stopTasks(ax.AsyncTaskPool.TaskType.TASK_IO)
-
         local node = self:getChildByTag(101)
         --remove all loaded sprite
         node:removeAllChildren()
-
-        --remove cache data
-        ax.MeshDataCache:getInstance():removeAllMeshRenderData()
 
         local function callback(sprite, index)
             local node = self:getChildByTag(101)
@@ -1083,7 +1067,7 @@ function Sprite3DCubeMapTest:ctor()
 end
 
 function Sprite3DCubeMapTest:init()
-    self:registerScriptHandler(function (event)
+    self:setLifecycleCallback(function (event)
         if event == "enter" then
             self:onEnter()
         elseif event == "exit" then
@@ -1123,15 +1107,15 @@ function Sprite3DCubeMapTest:addNewSpriteWithCoords(pos)
     --create a teapot
     self._teapot = ax.Sprite3D:create("MeshRendererTest/teapot.c3b")
 
-    local program = axr.ProgramManager:getInstance():loadProgram('custom/cube_map_vs', 'custom/cube_map_fs')
-    local programState = ccb.ProgramState:new(program)
+    local program = ax.ProgramManager:getInstance():loadProgram('custom/cube_map_vs', 'custom/cube_map_fs')
+    local programState = axr.ProgramState:new(program)
 
     self._textureCube = ax.TextureCube:create("MeshRendererTest/skybox/left.jpg", "MeshRendererTest/skybox/right.jpg",
         "MeshRendererTest/skybox/top.jpg", "MeshRendererTest/skybox/bottom.jpg",
         "MeshRendererTest/skybox/front.jpg", "MeshRendererTest/skybox/back.jpg")
 
     --set texture parameters
-    local tRepeatParams = { magFilter=ccb.SamplerFilter.LINEAR , minFilter=ccb.SamplerFilter.LINEAR , sAddressMode=ccb.SamplerAddressMode.MIRROR_REPEAT  , tAddressMode=ccb.SamplerAddressMode.MIRROR_REPEAT }
+    local tRepeatParams = { magFilter=axr.SamplerFilter.LINEAR , minFilter=axr.SamplerFilter.LINEAR , sAddressMode=axr.SamplerAddressMode.MIRROR_REPEAT  , tAddressMode=axr.SamplerAddressMode.MIRROR_REPEAT }
     self._textureCube:setTexParameters(tRepeatParams)
 
     --pass the texture sampler to our custom shader
@@ -1192,7 +1176,7 @@ function Sprite3DNormalMappingTest:init()
     Helper.titleLabel:setString(self:title())
     Helper.subtitleLabel:setString(self:subtitle())
 
-    self:registerScriptHandler(function (event)
+    self:setLifecycleCallback(function (event)
         if event == "enter" then
             self:onEnter()
         elseif event == "exit" then
@@ -1279,7 +1263,7 @@ function Sprite3DMaterialTest:init()
     Helper.titleLabel:setString(self:title())
     Helper.subtitleLabel:setString(self:subtitle())
 
-    self:registerScriptHandler(function (event)
+    self:setLifecycleCallback(function (event)
         if event == "enter" then
             self:onEnter()
         elseif event == "exit" then

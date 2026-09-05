@@ -27,7 +27,7 @@
 
 #include "MeshRendererTest.h"
 #include "DrawNode3D.h"
-#include "axmol/2d/CameraBackgroundBrush.h"
+#include "axmol/scene/CameraBackgroundBrush.h"
 #include "axmol/3d/MeshMaterial.h"
 #include "axmol/3d/MotionStreak3D.h"
 
@@ -40,6 +40,8 @@ using namespace ax;
 
 MeshRendererTests::MeshRendererTests()
 {
+    ADD_TEST_CASE(MeshRendererLightMapTest);
+
     ADD_TEST_CASE(MeshRendererBasicTest);
     ADD_TEST_CASE(MeshRendererStaticInstancingBasicTest);
     ADD_TEST_CASE(MeshRendererDynamicInstancingBasicTest);
@@ -162,8 +164,8 @@ std::string MeshRendererEmptyTest::subtitle() const
 
 MeshRendererBasicTest::MeshRendererBasicTest()
 {
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesEnded = AX_CALLBACK_2(MeshRendererBasicTest::onTouchesEnded, this);
+    auto listener         = PointerEventListener::create();
+    listener->onPointerUp = AX_CALLBACK_1(MeshRendererBasicTest::onPointerUp, this);
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 
     auto s = Director::getInstance()->getCanvasSize();
@@ -211,14 +213,11 @@ void MeshRendererBasicTest::addNewMeshWithCoords(Vec2 p)
     mesh->runAction(RepeatForever::create(seq));
 }
 
-void MeshRendererBasicTest::onTouchesEnded(const std::vector<Touch*>& touches, Event* event)
+void MeshRendererBasicTest::onPointerUp(PointerEvent* event)
 {
-    for (auto&& touch : touches)
-    {
-        auto location = touch->getLocation();
+    auto location = event->getWorldPoint();
 
-        addNewMeshWithCoords(location);
-    }
+    addNewMeshWithCoords(location);
 }
 
 std::string MeshRendererBasicTest::title() const
@@ -415,7 +414,8 @@ MeshRendererUVAnimationTest::MeshRendererUVAnimationTest()
     Size visibleSize         = Director::getInstance()->getVisibleSize();
 
     // use custom camera
-    auto camera = Camera::createPerspective(60, visibleSize.width / visibleSize.height, 0.1f, 200);
+    auto camera = Camera::create();
+    camera->configurePerspective(60, visibleSize.width / visibleSize.height, 0.1f, 200);
     camera->setCameraFlag(CameraFlag::USER1);
 
     // create cylinder
@@ -436,7 +436,7 @@ MeshRendererUVAnimationTest::MeshRendererUVAnimationTest()
     schedule(AX_SCHEDULE_SELECTOR(MeshRendererUVAnimationTest::cylinderUpdate));
 
 #if (AX_TARGET_PLATFORM == AX_PLATFORM_ANDROID)
-    _backToForegroundListener = EventListenerCustom::create(EVENT_COME_TO_FOREGROUND, [=](EventCustom*) {
+    _backToForegroundListener = CustomEventListener::create(EVENT_COME_TO_FOREGROUND, [=](CustomEvent*) {
         auto mat = MeshMaterial::createWithFilename("MeshRendererTest/UVAnimation.material");
 
         cylinder->setMaterial(mat);
@@ -498,16 +498,17 @@ MeshRendererFakeShadowTest::MeshRendererFakeShadowTest()
 {
     Size visibleSize = Director::getInstance()->getVisibleSize();
 
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesBegan = AX_CALLBACK_2(MeshRendererFakeShadowTest::onTouchesBegan, this);
-    listener->onTouchesMoved = AX_CALLBACK_2(MeshRendererFakeShadowTest::onTouchesMoved, this);
-    listener->onTouchesEnded = AX_CALLBACK_2(MeshRendererFakeShadowTest::onTouchesEnded, this);
+    auto listener           = PointerEventListener::create();
+    listener->onPointerDown = AX_CALLBACK_1(MeshRendererFakeShadowTest::onPointerDown, this);
+    listener->onPointerMove = AX_CALLBACK_1(MeshRendererFakeShadowTest::onPointerMove, this);
+    listener->onPointerUp   = AX_CALLBACK_1(MeshRendererFakeShadowTest::onPointerUp, this);
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 
     auto layer = Layer::create();
     addChild(layer, 0);
     // create Camera
-    _camera = Camera::createPerspective(60, visibleSize.width / visibleSize.height, 0.1f, 200);
+    _camera = Camera::create();
+    _camera->configurePerspective(60, visibleSize.width / visibleSize.height, 0.1f, 200);
     _camera->setCameraFlag(CameraFlag::USER1);
     _camera->setPosition3D(Vec3(0.0f, 20.0f, 25.0f));
     _camera->setRotation3D(Vec3(-60.0f, 0.0f, 0.0f));
@@ -541,7 +542,7 @@ MeshRendererFakeShadowTest::MeshRendererFakeShadowTest()
     schedule(AX_SCHEDULE_SELECTOR(MeshRendererFakeShadowTest::updateCamera), 0.0f);
 
 #if (AX_TARGET_PLATFORM == AX_PLATFORM_ANDROID)
-    _backToForegroundListener = EventListenerCustom::create(EVENT_COME_TO_FOREGROUND, [this](EventCustom*) {
+    _backToForegroundListener = CustomEventListener::create(EVENT_COME_TO_FOREGROUND, [this](CustomEvent*) {
         auto mat = MeshMaterial::createWithFilename("MeshRendererTest/FakeShadow.material");
         _state   = mat->getTechniqueByIndex(0)->getPassByIndex(0)->getProgramState();
         _plane->setMaterial(mat);
@@ -673,25 +674,29 @@ bool MeshRendererFakeShadowTest::isState(unsigned int state, unsigned int bit) c
     return (state & bit) == bit;
 }
 
-void MeshRendererFakeShadowTest::onTouchesBegan(const std::vector<Touch*>& touches, ax::Event* event) {}
-
-void MeshRendererFakeShadowTest::onTouchesMoved(const std::vector<Touch*>& touches, ax::Event* event) {}
-
-void MeshRendererFakeShadowTest::onTouchesEnded(const std::vector<Touch*>& touches, ax::Event* event)
+bool MeshRendererFakeShadowTest::onPointerDown(ax::PointerEvent* event)
 {
-    for (auto&& item : touches)
+    return true;
+}
+
+void MeshRendererFakeShadowTest::onPointerMove(ax::PointerEvent* event)
+{
+    return;
+}
+
+void MeshRendererFakeShadowTest::onPointerUp(ax::PointerEvent* event)
+{
     {
-        auto touch    = item;
-        auto location = touch->getLocationInView();
+        auto location = event->getPoint();
         if (_camera)
         {
             if (_orc)
             {
                 Vec3 nearP(location.x, location.y, -1.0f), farP(location.x, location.y, 1.0f);
 
-                auto size = Director::getInstance()->getCanvasSize();
-                nearP     = _camera->unproject(nearP);
-                farP      = _camera->unproject(farP);
+                // auto size = Director::getInstance()->getCanvasSize();
+                nearP = _camera->deprojectScreenToWorld(nearP);
+                farP  = _camera->deprojectScreenToWorld(farP);
                 Vec3 dir(farP - nearP);
                 float dist = 0.0f;
                 float ndd  = Vec3::dot(Vec3(0, 1, 0), dir);
@@ -724,7 +729,8 @@ void MeshRendererFakeShadowTest::onTouchesEnded(const std::vector<Touch*>& touch
 MeshRendererBasicToonShaderTest::MeshRendererBasicToonShaderTest()
 {
     Size visibleSize = Director::getInstance()->getVisibleSize();
-    auto _camera     = Camera::createPerspective(60, visibleSize.width / visibleSize.height, 0.1f, 200);
+    auto _camera     = Camera::create();
+    _camera->configurePerspective(60, visibleSize.width / visibleSize.height, 0.1f, 200);
     _camera->setCameraFlag(CameraFlag::USER1);
     // create a teapot
     auto teapot = MeshRenderer::create("MeshRendererTest/teapot.c3b");
@@ -740,7 +746,7 @@ MeshRendererBasicToonShaderTest::MeshRendererBasicToonShaderTest()
     addChild(_camera);
     setCameraMask(2);
 #if (AX_TARGET_PLATFORM == AX_PLATFORM_ANDROID)
-    _backToForegroundListener = EventListenerCustom::create(EVENT_COME_TO_FOREGROUND, [=](EventCustom*) {
+    _backToForegroundListener = CustomEventListener::create(EVENT_COME_TO_FOREGROUND, [=](CustomEvent*) {
         auto mat = MeshMaterial::createWithFilename("MeshRendererTest/BasicToon.material");
         _state   = mat->getTechniqueByIndex(0)->getPassByIndex(0)->getProgramState();
         teapot->setMaterial(mat);
@@ -776,7 +782,8 @@ MeshRendererLightMapTest::MeshRendererLightMapTest()
     // the assets are from the OpenVR demo
     // get the visible size.
     Size visibleSize = Director::getInstance()->getVisibleSize();
-    _camera          = Camera::createPerspective(60, visibleSize.width / visibleSize.height, 0.1f, 200);
+    _camera          = Camera::create();
+    _camera->configurePerspective(60, visibleSize.width / visibleSize.height, 0.1f, 200);
     _camera->setCameraFlag(CameraFlag::USER1);
     _camera->setPosition3D(Vec3(0.0f, 25.0f, 15.0f));
     _camera->setRotation3D(Vec3(-35.0f, 0.0f, 0.0f));
@@ -794,8 +801,8 @@ MeshRendererLightMapTest::MeshRendererLightMapTest()
     addChild(ambient);
 
     // create a listener
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesMoved = AX_CALLBACK_2(MeshRendererLightMapTest::onTouchesMoved, this);
+    auto listener           = PointerEventListener::create();
+    listener->onPointerMove = AX_CALLBACK_1(MeshRendererLightMapTest::onPointerMove, this);
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 }
 MeshRendererLightMapTest::~MeshRendererLightMapTest() {}
@@ -809,29 +816,27 @@ std::string MeshRendererLightMapTest::subtitle() const
     return "drag the screen to move around";
 }
 
-void MeshRendererLightMapTest::onTouchesMoved(const std::vector<ax::Touch*>& touches, ax::Event* event)
+void MeshRendererLightMapTest::onPointerMove(ax::PointerEvent* event)
 {
-    if (touches.size() == 1)
-    {
-        float delta           = Director::getInstance()->getDeltaTime();
-        auto touch            = touches[0];
-        auto location         = touch->getLocation();
-        auto PreviousLocation = touch->getPreviousLocation();
-        Point newPos          = PreviousLocation - location;
+    if (!event->isPrimaryPressed())
+        return;
+    float delta           = Director::getInstance()->getDeltaTime();
+    auto location         = event->getWorldPoint();
+    auto PreviousLocation = event->getPrevWorldPoint();
+    Point newPos          = PreviousLocation - location;
 
-        Vec3 cameraDir;
-        Vec3 cameraRightDir;
-        _camera->getNodeToWorldTransform().getForwardVector(&cameraDir);
-        cameraDir.normalize();
-        cameraDir.y = 0;
-        _camera->getNodeToWorldTransform().getRightVector(&cameraRightDir);
-        cameraRightDir.normalize();
-        cameraRightDir.y = 0;
-        Vec3 cameraPos   = _camera->getPosition3D();
-        cameraPos += cameraDir * newPos.y * delta;
-        cameraPos += cameraRightDir * newPos.x * delta;
-        _camera->setPosition3D(cameraPos);
-    }
+    Vec3 cameraDir;
+    Vec3 cameraRightDir;
+    _camera->getNodeToWorldTransform().getForwardVector(&cameraDir);
+    cameraDir.normalize();
+    cameraDir.y = 0;
+    _camera->getNodeToWorldTransform().getRightVector(&cameraRightDir);
+    cameraRightDir.normalize();
+    cameraRightDir.y = 0;
+    Vec3 cameraPos   = _camera->getPosition3D();
+    cameraPos += cameraDir * newPos.y * delta;
+    cameraPos += cameraRightDir * newPos.x * delta;
+    _camera->setPosition3D(cameraPos);
 }
 
 //------------------------------------------------------------------
@@ -865,30 +870,30 @@ MeshRendererHitTest::MeshRendererHitTest()
     mesh2->runAction(RepeatForever::create(RotateBy::create(3.0f, -360.0f)));
 
     // Make mesh1 touchable
-    auto listener1 = EventListenerTouchOneByOne::create();
-    listener1->setSwallowTouches(true);
+    auto listener1 = PointerEventListener::create();
 
-    listener1->onTouchBegan = [](Touch* touch, Event* event) {
+    listener1->onPointerDown = [](PointerEvent* event) {
         auto target = static_cast<MeshRenderer*>(event->getCurrentTarget());
 
         Rect rect = target->getBoundingBox();
-        if (rect.containsPoint(touch->getLocation()))
+        if (rect.containsPoint(event->getWorldPoint()))
         {
-            AXLOGD("mesh3d began... x = {}, y = {}", touch->getLocation().x, touch->getLocation().y);
+            AXLOGD("mesh3d began... x = {}, y = {}", event->getWorldPoint().x, event->getWorldPoint().y);
             target->setOpacity(100);
             return true;
         }
         return false;
     };
 
-    listener1->onTouchMoved = [](Touch* touch, Event* event) {
+    listener1->onPointerMove = [](PointerEvent* event) {
         auto target = static_cast<MeshRenderer*>(event->getCurrentTarget());
-        target->setPosition(target->getPosition() + touch->getDelta());
+        target->setPosition(target->getPosition() + (event->getWorldPoint() - event->getPrevWorldPoint()));
+        return true;
     };
 
-    listener1->onTouchEnded = [=](Touch* touch, Event* event) {
+    listener1->onPointerUp = [=](PointerEvent* event) {
         auto target = static_cast<MeshRenderer*>(event->getCurrentTarget());
-        AXLOGD("mesh3d onTouchesEnded.. ");
+        AXLOGD("mesh3d onPointerUp.. ");
         target->setOpacity(255);
     };
 
@@ -911,11 +916,11 @@ MeshRendererEffectTest::MeshRendererEffectTest()
     auto s = Director::getInstance()->getCanvasSize();
     addNewMeshWithCoords(Vec2(s.width / 2, s.height / 2));
 
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesEnded = AX_CALLBACK_2(MeshRendererEffectTest::onTouchesEnded, this);
+    auto listener         = PointerEventListener::create();
+    listener->onPointerUp = AX_CALLBACK_1(MeshRendererEffectTest::onPointerUp, this);
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 #if (AX_TARGET_PLATFORM == AX_PLATFORM_ANDROID)
-    _backToForegroundListener = EventListenerCustom::create(EVENT_COME_TO_FOREGROUND, [this](EventCustom*) {
+    _backToForegroundListener = CustomEventListener::create(EVENT_COME_TO_FOREGROUND, [this](CustomEvent*) {
         auto material = MeshMaterial::createWithFilename("MeshRendererTest/outline.material");
         material->setTechnique("outline_noneskinned");
         for (auto&& mesh : _meshes)
@@ -978,14 +983,11 @@ void MeshRendererEffectTest::addNewMeshWithCoords(Vec2 p)
     _meshes.emplace_back(mesh);
 }
 
-void MeshRendererEffectTest::onTouchesEnded(const std::vector<Touch*>& touches, Event* event)
+void MeshRendererEffectTest::onPointerUp(PointerEvent* event)
 {
-    for (auto&& touch : touches)
-    {
-        auto location = touch->getLocation();
+    auto location = event->getWorldPoint();
 
-        addNewMeshWithCoords(location);
-    }
+    addNewMeshWithCoords(location);
 }
 
 AsyncLoadMeshRendererTest::AsyncLoadMeshRendererTest()
@@ -1053,8 +1055,8 @@ void AsyncLoadMeshRendererTest::asyncLoad_Callback(MeshRenderer* mesh, void* par
 
 MeshRendererWithSkinTest::MeshRendererWithSkinTest()
 {
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesEnded = AX_CALLBACK_2(MeshRendererWithSkinTest::onTouchesEnded, this);
+    auto listener         = PointerEventListener::create();
+    listener->onPointerUp = AX_CALLBACK_1(MeshRendererWithSkinTest::onPointerUp, this);
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 
     // switch animation quality. In fact, you can set the mesh3d out of frustum to Animate3DQuality::QUALITY_NONE, it
@@ -1066,7 +1068,7 @@ MeshRendererWithSkinTest::MeshRendererWithSkinTest()
                                            AX_CALLBACK_1(MeshRendererWithSkinTest::switchAnimationQualityCallback, this));
     _menuItem->setColor(Color32(0, 200, 20));
     auto menu = Menu::create(_menuItem, nullptr);
-    menu->setPosition(Vec2::ZERO);
+    menu->setPosition(Vec2::zero);
     _menuItem->setPosition(VisibleRect::left().x + 50, VisibleRect::top().y - 70);
     addChild(menu, 1);
 
@@ -1147,27 +1149,24 @@ void MeshRendererWithSkinTest::switchAnimationQualityCallback(Object* sender)
     }
 }
 
-void MeshRendererWithSkinTest::onTouchesEnded(const std::vector<Touch*>& touches, Event* event)
+void MeshRendererWithSkinTest::onPointerUp(PointerEvent* event)
 {
-    for (auto&& touch : touches)
-    {
-        auto location = touch->getLocation();
+    auto location = event->getWorldPoint();
 
-        addNewMeshWithCoords(location);
-    }
+    addNewMeshWithCoords(location);
 }
 
 MeshRendererWithSkinOutlineTest::MeshRendererWithSkinOutlineTest()
 {
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesEnded = AX_CALLBACK_2(MeshRendererWithSkinOutlineTest::onTouchesEnded, this);
+    auto listener         = PointerEventListener::create();
+    listener->onPointerUp = AX_CALLBACK_1(MeshRendererWithSkinOutlineTest::onPointerUp, this);
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 
     auto s = Director::getInstance()->getCanvasSize();
     addNewMeshWithCoords(Vec2(s.width / 2, s.height / 2));
 
 #if (AX_TARGET_PLATFORM == AX_PLATFORM_ANDROID)
-    _backToForegroundListener = EventListenerCustom::create(EVENT_COME_TO_FOREGROUND, [this](EventCustom*) {
+    _backToForegroundListener = CustomEventListener::create(EVENT_COME_TO_FOREGROUND, [this](CustomEvent*) {
         auto material = MeshMaterial::createWithFilename("MeshRendererTest/outline.material");
         material->setTechnique("outline_skinned");
         for (auto&& mesh : _meshes)
@@ -1230,14 +1229,11 @@ void MeshRendererWithSkinOutlineTest::addNewMeshWithCoords(Vec2 p)
     }
 }
 
-void MeshRendererWithSkinOutlineTest::onTouchesEnded(const std::vector<Touch*>& touches, Event* event)
+void MeshRendererWithSkinOutlineTest::onPointerUp(PointerEvent* event)
 {
-    for (auto&& touch : touches)
-    {
-        auto location = touch->getLocation();
+    auto location = event->getWorldPoint();
 
-        addNewMeshWithCoords(location);
-    }
+    addNewMeshWithCoords(location);
 }
 
 Animate3DTest::Animate3DTest()
@@ -1245,8 +1241,8 @@ Animate3DTest::Animate3DTest()
 {
     addMeshRenderer();
 
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesEnded = AX_CALLBACK_2(Animate3DTest::onTouchesEnded, this);
+    auto listener         = PointerEventListener::create();
+    listener->onPointerUp = AX_CALLBACK_1(Animate3DTest::onPointerUp, this);
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 
     scheduleUpdate();
@@ -1345,11 +1341,10 @@ void Animate3DTest::renewCallBack()
     _elapseTransTime = 0.0f;
 }
 
-void Animate3DTest::onTouchesEnded(const std::vector<Touch*>& touches, Event* event)
+void Animate3DTest::onPointerUp(PointerEvent* event)
 {
-    for (auto&& touch : touches)
     {
-        auto location = touch->getLocation();
+        auto location = event->getWorldPoint();
 
         if (_mesh)
         {
@@ -1380,8 +1375,8 @@ AttachmentTest::AttachmentTest() : _hasWeapon(false), _mesh(nullptr)
     auto s = Director::getInstance()->getCanvasSize();
     addNewMeshWithCoords(Vec2(s.width / 2, s.height / 2));
 
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesEnded = AX_CALLBACK_2(AttachmentTest::onTouchesEnded, this);
+    auto listener         = PointerEventListener::create();
+    listener->onPointerUp = AX_CALLBACK_1(AttachmentTest::onPointerUp, this);
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 }
 std::string AttachmentTest::title() const
@@ -1417,7 +1412,7 @@ void AttachmentTest::addNewMeshWithCoords(Vec2 p)
     _hasWeapon = true;
 }
 
-void AttachmentTest::onTouchesEnded(const std::vector<Touch*>& touches, Event* event)
+void AttachmentTest::onPointerUp(PointerEvent* event)
 {
     if (_hasWeapon)
     {
@@ -1436,8 +1431,8 @@ MeshRendererReskinTest::MeshRendererReskinTest() : _mesh(nullptr)
     auto s = Director::getInstance()->getCanvasSize();
     addNewMeshWithCoords(Vec2(s.width / 2, s.height / 2));
 
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesEnded = AX_CALLBACK_2(MeshRendererReskinTest::onTouchesEnded, this);
+    auto listener         = PointerEventListener::create();
+    listener->onPointerUp = AX_CALLBACK_1(MeshRendererReskinTest::onPointerUp, this);
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
     TTFConfig ttfConfig("fonts/arial.ttf", 20);
     auto label1 = Label::createWithTTF(ttfConfig, "Hair");
@@ -1533,7 +1528,7 @@ void MeshRendererReskinTest::addNewMeshWithCoords(Vec2 p)
     applyCurSkin();
 }
 
-void MeshRendererReskinTest::onTouchesEnded(const std::vector<Touch*>& touches, Event* event) {}
+void MeshRendererReskinTest::onPointerUp(PointerEvent* event) {}
 
 void MeshRendererReskinTest::applyCurSkin()
 {
@@ -1555,10 +1550,10 @@ void MeshRendererReskinTest::applyCurSkin()
 
 MeshRendererWithOBBPerformanceTest::MeshRendererWithOBBPerformanceTest()
 {
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesBegan = AX_CALLBACK_2(MeshRendererWithOBBPerformanceTest::onTouchesBegan, this);
-    listener->onTouchesEnded = AX_CALLBACK_2(MeshRendererWithOBBPerformanceTest::onTouchesEnded, this);
-    listener->onTouchesMoved = AX_CALLBACK_2(MeshRendererWithOBBPerformanceTest::onTouchesMoved, this);
+    auto listener           = PointerEventListener::create();
+    listener->onPointerDown = AX_CALLBACK_1(MeshRendererWithOBBPerformanceTest::onPointerDown, this);
+    listener->onPointerUp   = AX_CALLBACK_1(MeshRendererWithOBBPerformanceTest::onPointerUp, this);
+    listener->onPointerMove = AX_CALLBACK_1(MeshRendererWithOBBPerformanceTest::onPointerMove, this);
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
     auto s = Director::getInstance()->getCanvasSize();
     initDrawBox();
@@ -1604,11 +1599,10 @@ void MeshRendererWithOBBPerformanceTest::addNewOBBWithCoords(Vec2 p)
     _obb.emplace_back(obb);
 }
 
-void MeshRendererWithOBBPerformanceTest::onTouchesBegan(const std::vector<Touch*>& touches, Event* event)
+bool MeshRendererWithOBBPerformanceTest::onPointerDown(PointerEvent* event)
 {
-    for (const auto& touch : touches)
     {
-        auto location = touch->getLocationInView();
+        auto location = event->getPoint();
         auto obbSize  = _obb.size();
         if (obbSize)
         {
@@ -1620,28 +1614,28 @@ void MeshRendererWithOBBPerformanceTest::onTouchesBegan(const std::vector<Touch*
                 if (ray.intersects(_obb[i]))
                 {
                     _intersetList.insert((int)i);
-                    return;
+                    return true;
                 }
             }
         }
     }
+
+    return false;
 }
 
-void MeshRendererWithOBBPerformanceTest::onTouchesEnded(const std::vector<Touch*>& touches, Event* event) {}
+void MeshRendererWithOBBPerformanceTest::onPointerUp(PointerEvent* event) {}
 
-void MeshRendererWithOBBPerformanceTest::onTouchesMoved(const std::vector<Touch*>& touches, Event* event)
+void MeshRendererWithOBBPerformanceTest::onPointerMove(PointerEvent* event)
 {
-    for (const auto& touch : touches)
-    {
-        auto location = touch->getLocation();
-        auto obbSize  = _obb.size();
+    auto location = event->getWorldPoint();
+    auto obbSize  = _obb.size();
 
-        for (decltype(obbSize) i = 0; i < obbSize; i++)
-        {
-            if (_intersetList.find((int)i) != _intersetList.end())
-                _obb[i]._center = Vec3(location.x, location.y, 0);
-        }
+    for (decltype(obbSize) i = 0; i < obbSize; i++)
+    {
+        if (_intersetList.find((int)i) != _intersetList.end())
+            _obb[i]._center = Vec3(location.x, location.y, 0);
     }
+    return;
 }
 
 void MeshRendererWithOBBPerformanceTest::update(float dt)
@@ -1794,7 +1788,7 @@ void MeshRendererWithOBBPerformanceTest::calculateRayByLocationInView(Ray* ray, 
 {
     auto dir  = Director::getInstance();
     auto view = dir->getCanvasSize();
-    auto mat  = dir->getMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_PROJECTION);
+    auto mat  = Camera::getDefaultCamera()->getViewProjectionMatrix();
 
     Vec3 src = Vec3(location.x, location.y, -1);
     Vec3 nearPoint;
@@ -1808,8 +1802,8 @@ void MeshRendererWithOBBPerformanceTest::calculateRayByLocationInView(Ray* ray, 
     Vec3::subtract(farPoint, nearPoint, &direction);
     direction.normalize();
 
-    ray->_origin    = nearPoint;
-    ray->_direction = direction;
+    ray->origin    = nearPoint;
+    ray->direction = direction;
 }
 
 MeshRendererMirrorTest::MeshRendererMirrorTest() : _mesh(nullptr), _mirrorMesh(nullptr)
@@ -1880,7 +1874,7 @@ QuaternionTest::QuaternionTest() : _arcSpeed(AX_DEGREES_TO_RADIANS(90)), _radius
 }
 std::string QuaternionTest::title() const
 {
-    return "Test Rotation With Quaternion";
+    return "Test Rotation With Quat";
 }
 std::string QuaternionTest::subtitle() const
 {
@@ -1914,8 +1908,8 @@ void QuaternionTest::update(float delta)
     auto s = Director::getInstance()->getCanvasSize();
     _mesh->setPosition(Vec2(s.width / 2.f + _radius * cosf(_accAngle), s.height / 2.f + _radius * sinf(_accAngle)));
 
-    Quaternion quat;
-    Quaternion::createFromAxisAngle(Vec3(0.f, 0.f, 1.f), _accAngle - pi * 0.5f, &quat);
+    Quat quat;
+    Quat::createFromAxisAngle(Vec3(0.f, 0.f, 1.f), _accAngle - pi * 0.5f, &quat);
     _mesh->setRotationQuat(quat);
 }
 
@@ -1953,7 +1947,8 @@ UseCaseMeshRenderer::UseCaseMeshRenderer() : _caseIdx(0)
     addChild(menu);
 
     // setup camera
-    auto camera = Camera::createPerspective(40, s.width / s.height, 0.01f, 1000.f);
+    auto camera = Camera::create();
+    camera->configurePerspective(40, s.width / s.height, 0.01f, 1000.f);
     camera->setCameraFlag(CameraFlag::USER1);
     camera->setPosition3D(Vec3(0.f, 30.f, 100.f));
     camera->lookAt(Vec3(0.f, 0.f, 0.f));
@@ -2192,7 +2187,7 @@ void NodeAnimationTest::addNewMeshWithCoords(Vec2 p)
     _meshes.emplace_back(mesh);
 }
 
-MeshRendererCubeMapTest::MeshRendererCubeMapTest() : _textureCube(nullptr), _skyBox(nullptr), _teapot(nullptr)
+MeshRendererCubeMapTest::MeshRendererCubeMapTest() : _textureCube(nullptr), _teapot(nullptr)
 {
     auto s = Director::getInstance()->getCanvasSize();
     addNewMeshWithCoords(Vec2(s.width / 2, s.height / 2));
@@ -2205,7 +2200,6 @@ MeshRendererCubeMapTest::~MeshRendererCubeMapTest()
 #endif
 
     _teapot->release();
-    _skyBox->release();
     _textureCube->release();
 }
 
@@ -2222,12 +2216,13 @@ std::string MeshRendererCubeMapTest::subtitle() const
 void MeshRendererCubeMapTest::addNewMeshWithCoords(Vec2 p)
 {
     Size visibleSize = Director::getInstance()->getVisibleSize();
-    _camera          = Camera::createPerspective(60, visibleSize.width / visibleSize.height, 10, 1000);
+    _camera          = Camera::create();
+    _camera->configurePerspective(60, visibleSize.width / visibleSize.height, 10, 1000);
     _camera->setPosition3D(Vec3(0.f, 0.f, 50.f));
     _camera->setCameraFlag(CameraFlag::USER1);
 
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesMoved = AX_CALLBACK_2(MeshRendererCubeMapTest::onTouchesMoved, this);
+    auto listener           = PointerEventListener::create();
+    listener->onPointerMove = AX_CALLBACK_1(MeshRendererCubeMapTest::onPointerMove, this);
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 
     // create a teapot
@@ -2261,19 +2256,16 @@ void MeshRendererCubeMapTest::addNewMeshWithCoords(Vec2 p)
 
     addChild(_teapot);
 
-    {
-        // config skybox
-        _skyBox = Skybox::create();
-        _skyBox->retain();
-
-        _skyBox->setTexture(_textureCube);
-        addChild(_skyBox);
-    }
-
     addChild(_camera);
     setCameraMask(2);
+
+    // config skybox brush on camera
+    auto skyboxBrush = CameraBackgroundSkyBoxBrush::create();
+    skyboxBrush->setTexture(_textureCube);
+    _camera->setBackgroundBrush(skyboxBrush);
+
 #if (AX_TARGET_PLATFORM == AX_PLATFORM_ANDROID)
-    _backToForegroundListener = EventListenerCustom::create(EVENT_COME_TO_FOREGROUND, [this](EventCustom*) {
+    _backToForegroundListener = CustomEventListener::create(EVENT_COME_TO_FOREGROUND, [this](CustomEvent*) {
         AX_SAFE_RELEASE(_textureCube);
         _textureCube = TextureCube::create("MeshRendererTest/skybox/left.jpg", "MeshRendererTest/skybox/right.jpg",
                                            "MeshRendererTest/skybox/top.jpg", "MeshRendererTest/skybox/bottom.jpg",
@@ -2287,7 +2279,9 @@ void MeshRendererCubeMapTest::addNewMeshWithCoords(Vec2 p)
         auto mat   = MeshMaterial::createWithFilename("MeshRendererTest/CubeMap.material");
         auto state = mat->getTechniqueByIndex(0)->getPassByIndex(0)->getProgramState();
         _teapot->setMaterial(mat);
-        _skyBox->setTexture(_textureCube);
+        // update skybox brush texture
+        if (auto brush = static_cast<CameraBackgroundSkyBoxBrush*>(_camera->getBackgroundBrush()))
+            brush->setTexture(_textureCube);
         // pass the texture sampler to our custom shader
         auto cubeTexLoc = state->getUniformLocation("u_cubeTex");
         state->setTexture(cubeTexLoc, 0, _textureCube->getRHITexture());
@@ -2296,18 +2290,17 @@ void MeshRendererCubeMapTest::addNewMeshWithCoords(Vec2 p)
 #endif
 }
 
-void MeshRendererCubeMapTest::onTouchesMoved(const std::vector<Touch*>& touches, ax::Event* event)
+void MeshRendererCubeMapTest::onPointerMove(ax::PointerEvent* event)
 {
-    if (touches.size())
-    {
-        auto touch = touches[0];
-        auto delta = touch->getDelta();
+    if (!event->isPrimaryPressed())
+        return;
+    auto delta = (event->getWorldPoint() - event->getPrevWorldPoint());
 
-        static float _angle = 0.f;
-        _angle -= AX_DEGREES_TO_RADIANS(delta.x);
-        _camera->setPosition3D(Vec3(50.0f * sinf(_angle), 0.0f, 50.0f * cosf(_angle)));
-        _camera->lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f));
-    }
+    static float _angle = 0.f;
+    _angle -= AX_DEGREES_TO_RADIANS(delta.x);
+    _camera->setPosition3D(Vec3(50.0f * sinf(_angle), 0.0f, 50.0f * cosf(_angle)));
+    _camera->lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f));
+    return;
 }
 
 Issue9767::Issue9767()
@@ -2431,7 +2424,7 @@ Animate3DCallbackTest::Animate3DCallbackTest()
         ValueMap valuemap0;
         animate->setKeyFrameUserInfo(275, valuemap0);
 
-        auto listener = EventListenerCustom::create(Animate3DDisplayedNotification, [&](EventCustom* event) {
+        auto listener = CustomEventListener::create(Animate3DDisplayedNotification, [&](CustomEvent* event) {
             auto info = (Animate3D::Animate3DDisplayedEventInfo*)event->getUserData();
             auto node = getChildByTag(100);
             if (node)
@@ -2475,14 +2468,15 @@ MeshRendererVertexColorTest::MeshRendererVertexColorTest()
     this->addChild(mesh);
 
     // setup camera
-    auto camera = Camera::createPerspective(40, s.width / s.height, 0.01f, 1000.f);
+    auto camera = Camera::create();
+    camera->configurePerspective(40, s.width / s.height, 0.01f, 1000.f);
     camera->setCameraFlag(CameraFlag::USER1);
     camera->setPosition3D(Vec3(0.0f, 0.0f, 10.f));
     camera->lookAt(Vec3(0.f, 0.f, 0.f));
     addChild(camera);
 
 #if (AX_TARGET_PLATFORM == AX_PLATFORM_ANDROID)
-    _backToForegroundListener = EventListenerCustom::create(EVENT_COME_TO_FOREGROUND, [=](EventCustom*) {
+    _backToForegroundListener = CustomEventListener::create(EVENT_COME_TO_FOREGROUND, [=](CustomEvent*) {
         auto mat = MeshMaterial::createWithFilename("MeshRendererTest/VertexColor.material");
         mesh->setMaterial(mat);
     });
@@ -2521,7 +2515,8 @@ CameraBackgroundClearTest::CameraBackgroundClearTest()
 
     // setup camera
     auto s  = Director::getInstance()->getCanvasSize();
-    _camera = Camera::createPerspective(40, s.width / s.height, 0.01f, 1000.f);
+    _camera = Camera::create();
+    _camera->configurePerspective(40, s.width / s.height, 0.01f, 1000.f);
     _camera->setCameraFlag(CameraFlag::USER1);
     _camera->setPosition3D(Vec3(0.f, 30.f, 100.f));
     _camera->lookAt(Vec3(0.f, 0.f, 0.f));
@@ -2590,7 +2585,8 @@ MotionStreak3DTest::MotionStreak3DTest()
 {
     auto s = Director::getInstance()->getCanvasSize();
 
-    auto camera = Camera::createPerspective(40, s.width / s.height, 0.01f, 1000.f);
+    auto camera = Camera::create();
+    camera->configurePerspective(40, s.width / s.height, 0.01f, 1000.f);
     camera->setCameraFlag(CameraFlag::USER1);
     camera->setPosition3D(Vec3(0.f, 50.f, 200.f));
     camera->lookAt(Vec3(0.f, 0.f, 0.f));
@@ -2658,7 +2654,8 @@ MeshRendererNormalMappingTest::MeshRendererNormalMappingTest()
     }
 
     // setup camera
-    auto camera = Camera::createPerspective(60.0, s.width / s.height, 1.0f, 1000.f);
+    auto camera = Camera::create();
+    camera->configurePerspective(60.0, s.width / s.height, 1.0f, 1000.f);
     camera->setCameraFlag(CameraFlag::USER1);
     camera->setPosition3D(Vec3(0.f, 0.f, 100.f));
     camera->lookAt(Vec3(0.f, 0.f, 0.f));
@@ -2709,7 +2706,8 @@ MeshRendererPropertyTest::MeshRendererPropertyTest()
 {
     auto s = Director::getInstance()->getCanvasSize();
 
-    auto camera = Camera::createPerspective(40, s.width / s.height, 0.01f, 1000.f);
+    auto camera = Camera::create();
+    camera->configurePerspective(40, s.width / s.height, 0.01f, 1000.f);
     camera->setCameraFlag(CameraFlag::USER1);
     camera->setPosition3D(Vec3(0.f, 50.f, 200.f));
     camera->lookAt(Vec3(0.f, 0.f, 0.f));
@@ -2724,8 +2722,8 @@ MeshRendererPropertyTest::MeshRendererPropertyTest()
 
     setCameraMask(2);
 
-    // auto listener = EventListenerTouchAllAtOnce::create();
-    ////listener->onTouchesEnded = AX_CALLBACK_2(MeshRendererReskinTest::onTouchesEnded, this);
+    // auto listener = PointerEventListener::create();
+    ////listener->onPointerUp = AX_CALLBACK_1(MeshRendererReskinTest::onPointerUp, this);
     //_eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 
     TTFConfig ttfConfig("fonts/arial.ttf", 20);

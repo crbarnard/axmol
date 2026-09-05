@@ -31,10 +31,10 @@
 #include "axmol/base/Vector.h"
 #include "axmol/base/Types.h"
 #include "axmol/base/Protocols.h"
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/renderer/MeshCommand.h"
 #include "axmol/3d/Skeleton3D.h"  // needs to be included for lua-bindings
-#include "axmol/3d/AABB.h"
+#include "axmol/math/AABB.h"
 #include "axmol/3d/Bundle3DData.h"
 #include "axmol/3d/MeshVertexIndexData.h"
 #include "axmol/3d/MeshMaterial.h"
@@ -188,7 +188,7 @@ public:
     bool isWireframe() const { return _wireframe; }
 
     /** render all meshes within this mesh renderer */
-    void draw(Renderer* renderer, const Mat4& transform, uint32_t flags) override;
+    void draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags) override;
 
     /** Adds a new material to this mesh renderer.
      The Material will be applied to all the meshes that belong to the mesh renderer.
@@ -208,6 +208,20 @@ public:
      * @param meshIndex Index of the mesh to get the material from. 0 is the default index.
      */
     Material* getMaterial(int meshIndex = 0) const;
+
+    /**
+     * @brief Retrieve the material of a specific sub-mesh.
+     *
+     * Provides safe access to the material of a child MeshRenderer at the given
+     * sub-mesh index. This avoids direct casting and hard-coded child lookups.
+     *
+     * @param subMeshIndex Index of the sub-mesh (child MeshRenderer).
+     * @param materialIndex Index of the material within the sub-mesh (default is 0).
+     * @return Pointer to the requested Material, or nullptr if not found.
+     *
+     * @note Performs bounds checking and dynamic casting internally.
+     */
+    Material* getSubMeshMaterial(size_t subMeshIndex, size_t materialIndex = 0);
 
     /** Get list of meshes used in this mesh renderer. */
     const Vector<Mesh*>& getMeshes() const { return _meshes; }
@@ -233,7 +247,7 @@ public:
      * Note: all children will be rendered in 3D space with depth, this behaviour can be changed using
      * setForce2DQueue()
      */
-    void visit(Renderer* renderer, const Mat4& parentTransform, uint32_t parentFlags) override;
+    void visit(const SceneRenderState& state, const Mat4& parentTransform, uint32_t parentFlags) override;
 
     /** generate default material. */
     void genMaterial(bool useLight = false);

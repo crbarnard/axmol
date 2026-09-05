@@ -1,16 +1,16 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated July 28, 2023. Replaces all prior versions.
+ * Last updated April 5, 2025. Replaces all prior versions.
  *
- * Copyright (c) 2013-2023, Esoteric Software LLC
+ * Copyright (c) 2013-2025, Esoteric Software LLC
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
  * conditions of Section 2 of the Spine Editor License Agreement:
  * http://esotericsoftware.com/spine-editor-license
  *
- * Otherwise, it is permitted to integrate the Spine Runtimes into software or
- * otherwise create derivative works of the Spine Runtimes (collectively,
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
  * "Products"), provided that each user of the Products must obtain their own
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
@@ -23,8 +23,8 @@
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
  * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE
- * SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #ifndef Spine_Property_h
@@ -33,35 +33,38 @@
 namespace spine {
 	typedef long long PropertyId;
 	enum Property {
-		Property_Rotate = 1 << 0,
-		Property_X = 1 << 1,
-		Property_Y = 1 << 2,
-		Property_ScaleX = 1 << 3,
-		Property_ScaleY = 1 << 4,
-		Property_ShearX = 1 << 5,
-		Property_ShearY = 1 << 6,
-        Property_Inherit = 1 << 7,
-		Property_Rgb = 1 << 8,
-		Property_Alpha = 1 << 9,
-		Property_Rgb2 = 1 << 10,
-		Property_Attachment = 1 << 11,
-		Property_Deform = 1 << 12,
-		Property_Event = 1 << 13,
-		Property_DrawOrder = 1 << 14,
-		Property_IkConstraint = 1 << 15,
-		Property_TransformConstraint = 1 << 16,
-		Property_PathConstraintPosition = 1 << 17,
-		Property_PathConstraintSpacing = 1 << 18,
-		Property_PathConstraintMix = 1 << 19,
-        Property_PhysicsConstraintInertia = 1 << 20,
-        Property_PhysicsConstraintStrength = 1 << 21,
-        Property_PhysicsConstraintDamping = 1 << 22,
-        Property_PhysicsConstraintMass = 1 << 23,
-        Property_PhysicsConstraintWind = 1 << 24,
-        Property_PhysicsConstraintGravity = 1 << 25,
-        Property_PhysicsConstraintMix = 1 << 26,
-        Property_PhysicsConstraintReset = 1 << 27,
-		Property_Sequence = 1 << 28
+		Property_Rotate = 0,
+		Property_X,
+		Property_Y,
+		Property_ScaleX,
+		Property_ScaleY,
+		Property_ShearX,
+		Property_ShearY,
+		Property_Inherit,
+		Property_Rgb,
+		Property_Alpha,
+		Property_Rgb2,
+		Property_Attachment,
+		Property_Deform,
+		Property_Event,
+		Property_DrawOrder,
+		Property_IkConstraint,
+		Property_TransformConstraint,
+		Property_PathConstraintPosition,
+		Property_PathConstraintSpacing,
+		Property_PathConstraintMix,
+		Property_PhysicsConstraintInertia,
+		Property_PhysicsConstraintStrength,
+		Property_PhysicsConstraintDamping,
+		Property_PhysicsConstraintMass,
+		Property_PhysicsConstraintWind,
+		Property_PhysicsConstraintGravity,
+		Property_PhysicsConstraintMix,
+		Property_PhysicsConstraintReset,
+		Property_Sequence,
+		Property_SliderTime,
+		Property_SliderMix,
+		Property_DrawOrderFolder
 	};
 }
 

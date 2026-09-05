@@ -31,7 +31,7 @@
 namespace ax
 {
 
-Particle3D::Particle3D() : color(Vec4::ONE), rt_uv(Vec2::ONE), width(1.0f), height(1.0f), depth(1.0f) {}
+Particle3D::Particle3D() : color(Vec4::one), rt_uv(Vec2::one), width(1.0f), height(1.0f), depth(1.0f) {}
 
 Particle3D::~Particle3D() {}
 
@@ -169,11 +169,11 @@ void ParticleSystem3D::update(float delta)
     }
 }
 
-void ParticleSystem3D::draw(Renderer* renderer, const Mat4& transform, uint32_t /*flags*/)
+void ParticleSystem3D::draw(const SceneRenderState& state, const Mat4& transform, uint32_t /*flags*/)
 {
     if (getAliveParticleCount() && _render)
     {
-        _render->render(renderer, transform, this);
+        _render->render(state, transform, this);
     }
 }
 

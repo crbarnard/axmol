@@ -153,7 +153,7 @@ void TimerTargetSelector::cancel()
 TimerTargetCallback::TimerTargetCallback() : _target(nullptr), _callback(nullptr) {}
 
 bool TimerTargetCallback::initWithCallback(Scheduler* scheduler,
-                                           const ccSchedulerFunc& callback,
+                                           const SchedulerFunc& callback,
                                            void* target,
                                            std::string_view key,
                                            float seconds,
@@ -187,6 +187,7 @@ void TimerTargetCallback::cancel()
 
 bool TimerScriptHandler::initWithScriptHandler(int handler, float seconds)
 {
+    _callback      = {};
     _scriptHandler = handler;
     _elapsed       = -1;
     _interval      = seconds;
@@ -194,9 +195,22 @@ bool TimerScriptHandler::initWithScriptHandler(int handler, float seconds)
     return true;
 }
 
+bool TimerScriptHandler::initWithCallback(const SchedulerFunc& callback, float seconds)
+{
+    _scriptHandler = 0;
+    _callback      = callback;
+    _elapsed       = -1;
+    _interval      = seconds;
+    return true;
+}
+
 void TimerScriptHandler::trigger(float dt)
 {
-    if (0 != _scriptHandler)
+    if (_callback)
+    {
+        _callback(dt);
+    }
+    else if (0 != _scriptHandler)
     {
         SchedulerScriptData data(_scriptHandler, dt);
         ScriptEvent event(kScheduleEvent, &data);
@@ -224,26 +238,19 @@ Scheduler::Scheduler()
 #if AX_ENABLE_SCRIPT_BINDING
     , _scriptHandlerEntries(20)
 #endif
-{
-    // I don't expect to have more than 30 functions to all per frame
-    _actionsToPerform.reserve(30);
-}
+{}
 
 Scheduler::~Scheduler()
 {
     unscheduleAll();
 }
 
-void Scheduler::schedule(const ccSchedulerFunc& callback,
-                         void* target,
-                         float interval,
-                         bool paused,
-                         std::string_view key)
+void Scheduler::schedule(const SchedulerFunc& callback, void* target, float interval, bool paused, std::string_view key)
 {
     this->schedule(callback, target, interval, AX_REPEAT_FOREVER, 0.0f, paused, key);
 }
 
-void Scheduler::schedule(const ccSchedulerFunc& callback,
+void Scheduler::schedule(const SchedulerFunc& callback,
                          void* target,
                          float interval,
                          unsigned int repeat,
@@ -344,7 +351,7 @@ void Scheduler::unschedule(std::string_view key, void* target)
 }
 
 void Scheduler::priorityIn(tlx::pod_vector<SchedHandle*>& list,
-                           const ccSchedulerFunc& callback,
+                           const SchedulerFunc& callback,
                            void* target,
                            int priority,
                            bool paused)
@@ -356,17 +363,14 @@ void Scheduler::priorityIn(tlx::pod_vector<SchedHandle*>& list,
     _schedIndexMap.emplace(target, sched);
 }
 
-void Scheduler::appendIn(tlx::pod_vector<SchedHandle*>& list,
-                         const ccSchedulerFunc& callback,
-                         void* target,
-                         bool paused)
+void Scheduler::appendIn(tlx::pod_vector<SchedHandle*>& list, const SchedulerFunc& callback, void* target, bool paused)
 {
     auto sched = new SchedHandle(&list, callback, target, 0, paused);
     list.emplace_back(sched);
     _schedIndexMap.emplace(target, sched);
 }
 
-void Scheduler::addToWaitList(const ccSchedulerFunc& callback, void* target, int priority, bool paused)
+void Scheduler::addToWaitList(const SchedulerFunc& callback, void* target, int priority, bool paused)
 {
     auto sched = new SchedHandle(&_waitList, callback, target, priority, paused);
     _waitList.emplace_back(sched);
@@ -400,7 +404,7 @@ void Scheduler::activeWaitList()
     _waitList.clear();
 }
 
-void Scheduler::schedulePerFrame(const ccSchedulerFunc& callback, void* target, int priority, bool paused)
+void Scheduler::schedulePerFrame(const SchedulerFunc& callback, void* target, int priority, bool paused)
 {
     auto updateIt = _schedIndexMap.find(target);
     if (updateIt != _schedIndexMap.end())
@@ -591,6 +595,13 @@ unsigned int Scheduler::scheduleScriptFunc(unsigned int handler, float interval,
     return entry->getEntryId();
 }
 
+unsigned int Scheduler::scheduleScriptFunc(const SchedulerFunc& callback, float interval, bool paused)
+{
+    SchedulerScriptHandlerEntry* entry = SchedulerScriptHandlerEntry::create(callback, interval, paused);
+    _scriptHandlerEntries.pushBack(entry);
+    return entry->getEntryId();
+}
+
 void Scheduler::unscheduleScriptEntry(unsigned int scheduleScriptEntryID)
 {
     for (ssize_t i = _scriptHandlerEntries.size() - 1; i >= 0; i--)
@@ -723,21 +734,11 @@ void Scheduler::resumeTargets(const std::set<void*>& targetsToResume)
     }
 }
 
-void Scheduler::runOnAxmolThread(std::function<void()> action)
-{
-    std::lock_guard<std::mutex> lock(_performMutex);
-    _actionsToPerform.emplace_back(std::move(action));
-}
-
-void Scheduler::removeAllPendingActions()
-{
-    std::unique_lock<std::mutex> lock(_performMutex);
-    _actionsToPerform.clear();
-}
-
 // main loop
 void Scheduler::update(float dt)
 {
+    AX_PROFILER_ZONE_SCOPED;
+
     // active waitlist
     if (!_waitList.empty())
         activeWaitList();
@@ -853,25 +854,6 @@ void Scheduler::update(float dt)
         }
     }
 #endif
-    //
-    // Functions allocated from another thread
-    //
-
-    // Testing size is faster than locking / unlocking.
-    // And almost never there will be functions scheduled to be called.
-    if (!_actionsToPerform.empty())
-    {
-        _performMutex.lock();
-        // fixed #4123: Save the callback functions, they must be invoked after '_performMutex.unlock()', otherwise if
-        // new functions are added in callback, it will cause thread deadlock.
-        auto temp = std::move(_actionsToPerform);
-        _performMutex.unlock();
-
-        for (const auto& function : temp)
-        {
-            function();
-        }
-    }
 }
 
 void Scheduler::schedule(SEL_SCHEDULE selector,

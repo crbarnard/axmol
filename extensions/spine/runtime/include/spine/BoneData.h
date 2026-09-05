@@ -1,16 +1,16 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated July 28, 2023. Replaces all prior versions.
+ * Last updated April 5, 2025. Replaces all prior versions.
  *
- * Copyright (c) 2013-2023, Esoteric Software LLC
+ * Copyright (c) 2013-2025, Esoteric Software LLC
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
  * conditions of Section 2 of the Spine Editor License Agreement:
  * http://esotericsoftware.com/spine-editor-license
  *
- * Otherwise, it is permitted to integrate the Spine Runtimes into software or
- * otherwise create derivative works of the Spine Runtimes (collectively,
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
  * "Products"), provided that each user of the Products must obtain their own
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
@@ -23,20 +23,21 @@
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
  * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE
- * SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #ifndef Spine_BoneData_h
 #define Spine_BoneData_h
 
-#include <spine/Inherit.h>
-#include <spine/SpineObject.h>
+#include <spine/PosedData.h>
+#include <spine/BonePose.h>
 #include <spine/SpineString.h>
 #include <spine/Color.h>
+#include <spine/RTTI.h>
 
 namespace spine {
-	class SP_API BoneData : public SpineObject {
+	class SP_API BoneData : public PosedDataGeneric<BonePose> {
 		friend class SkeletonBinary;
 
 		friend class SkeletonJson;
@@ -63,87 +64,51 @@ namespace spine {
 
 		friend class TranslateYTimeline;
 
+		friend class Slot;
+
 	public:
 		BoneData(int index, const String &name, BoneData *parent = NULL);
 
-		/// The index of the bone in Skeleton.Bones
+		/// The Skeleton::getBones() index for this bone.
 		int getIndex();
 
-		/// The name of the bone, which is unique within the skeleton.
-		const String &getName();
-
-		/// May be NULL.
+		/// The parent bone, or NULL if this bone is the root.
 		BoneData *getParent();
 
 		float getLength();
 
 		void setLength(float inValue);
 
-		/// Local X translation.
-		float getX();
-
-		void setX(float inValue);
-
-		/// Local Y translation.
-		float getY();
-
-		void setY(float inValue);
-
-		/// Local rotation.
-		float getRotation();
-
-		void setRotation(float inValue);
-
-		/// Local scaleX.
-		float getScaleX();
-
-		void setScaleX(float inValue);
-
-		/// Local scaleY.
-		float getScaleY();
-
-		void setScaleY(float inValue);
-
-		/// Local shearX.
-		float getShearX();
-
-		void setShearX(float inValue);
-
-		/// Local shearY.
-		float getShearY();
-
-		void setShearY(float inValue);
-
-		/// The transform mode for how parent world transforms affect this bone.
-		Inherit getInherit();
-
-		void setInherit(Inherit inValue);
-
-		bool isSkinRequired();
-
-		void setSkinRequired(bool inValue);
-
 		Color &getColor();
 
-        const String &getIcon();
+		/// The bone icon name as it was in Spine, or empty if nonessential data was not exported.
+		const String &getIcon();
 
-        void setIcon(const String &icon);
+		void setIcon(const String &icon);
 
-        bool isVisible();
+		/// The bone icon's display size scale, or 1 if nonessential data was not exported.
+		float getIconSize();
 
-        void setVisible(bool inValue);
+		void setIconSize(float iconSize);
+
+		/// The bone icon's display rotation in degrees, or 0 if nonessential data was not exported.
+		float getIconRotation();
+
+		void setIconRotation(float iconRotation);
+
+		bool getVisible();
+
+		void setVisible(bool inValue);
 
 	private:
 		const int _index;
-		const String _name;
 		BoneData *_parent;
 		float _length;
-		float _x, _y, _rotation, _scaleX, _scaleY, _shearX, _shearY;
-		Inherit _inherit;
-		bool _skinRequired;
 		Color _color;
-        String _icon;
-        bool _visible;
+		String _icon;
+		float _iconSize;
+		float _iconRotation;
+		bool _visible;
 	};
 }
 

@@ -32,11 +32,11 @@ function println($message) { Write-Host "axmol: $message" }
 # import VersionEx
 . (Join-Path $PSScriptRoot '1k/extensions.ps1')
 
-[VersionEx]$pwsh_ver = [Regex]::Match($PSVersionTable.PSVersion.ToString(), '(\d+\.)+(\*|\d+)').Value
+[VersionEx]$pwshVersion = $pwsh_ver
 
 function mkdirs([string]$path) {
     if (!(Test-Path $path -PathType Container)) {
-        if ($pwsh_ver -ge [VersionEx]'5.0') {
+        if ($pwshVersion -ge [VersionEx]'5.0') {
             New-Item $path -ItemType Directory 1>$null
         }
         else {
@@ -45,7 +45,7 @@ function mkdirs([string]$path) {
     }
 }
 
-if ($pwsh_ver -lt [VersionEx]'5.0') {
+if ($pwshVersion -lt [VersionEx]'5.0') {
     $ErrorActionPreference = 'Stop'
 
     # try setup WMF5.1, require reboot, try run setup.ps1 several times
@@ -195,7 +195,7 @@ if ($IsWin) {
     }
 
     $execPolicy = powershell -Command 'Get-ExecutionPolicy'
-    if ($pwsh_ver.Major -gt 5) {
+    if ($pwshVersion.Major -gt 5) {
         $execPolicy = powershell -Command 'Get-ExecutionPolicy'
         if ($execPolicy -ne 'Bypass') {
             println "Setting system installed powershell execution policy '$execPolicy'==>'Bypass', please click 'YES' on UAC dialog"
@@ -210,6 +210,10 @@ if ($IsWin) {
     }
 }
 else {
+    # fixup axmol cmdline tool main script executable permission
+    $cmdline_main = Join-Path $AX_ROOT 'tools/cmdline/axmol'
+    chmod +x $cmdline_main
+
     # update pwsh profile
     if (Test-Path $PROFILE -PathType Leaf) {
         $profileContent = "$(Get-Content $PROFILE -raw)"
@@ -297,25 +301,18 @@ else {
     }
     elseif ($IsLinux) {
         # determine distro
-        if ($(Get-Command 'dpkg' -ErrorAction SilentlyContinue)) {
-            $LinuxDistro = 'Debian'
-        }
-        elseif ($(Get-Command 'pacman' -ErrorAction SilentlyContinue)) {
-            $LinuxDistro = 'Arch'
-        }
-        else {
-            $LinuxDistro = 'Linux'
-        }
+        $LinuxDistro = (Get-Content /etc/os-release | Where-Object { $_ -match '^ID=' }) -replace '^ID="?', '' -replace '"?$', ''
+        println "Detected Linux Distro: $LinuxDistro"
 
         # preferred ~/.profile to ensure GUI apps and terminal works
         updateUnixProfile ~/.profile
 
-        # ~/.profile not read by bash(1), if ~/.bash_profile or ~/.bash_login
-        if (Test-Path ~/.bash_profile -PathType Leaf) {
-            if ("$env:SHELL" -like '*/zsh') {
-                updateUnixProfile ~/.zshrc
-            }
-            else {
+        if ("$env:SHELL" -like '*/zsh') {
+            updateUnixProfile ~/.zshrc
+        }
+        else {
+            # ~/.profile not read by bash(1), if ~/.bash_profile or ~/.bash_login exists, for example: wsl
+            if ((Test-Path ~/.bash_profile -PathType Leaf) -or (Test-Path ~/.bash_login -PathType Leaf)) {
                 updateUnixProfile ~/.bashrc
             }
         }
@@ -323,7 +320,7 @@ else {
         Write-Host "Install Axmol Linux dependencies (one-time)? (y/N) " -NoNewline
         $answer = Read-Host
         if ($answer -like 'y*') {
-            if ($LinuxDistro -eq 'Debian') {
+            if (($LinuxDistro -eq 'debian') -or ($LinuxDistro -eq 'ubuntu')) {
                 println "It will take few minutes"
                 $os_name = $PSVersionTable.OS
                 $os_ver = [Regex]::Match($os_name, '\d+(\.\d+)*(-[a-z0-9]+)?').Value
@@ -336,8 +333,6 @@ else {
                 }
 
                 sudo apt-get update
-                # for vm, libxxf86vm-dev also required
-
                 $DEPENDS = @()
 
                 $DEPENDS += 'libx11-dev'
@@ -372,14 +367,14 @@ else {
                     sudo apt-get install --allow-unauthenticated --yes $DEPENDS
                 }
             }
-            elseif ($LinuxDistro -eq 'Arch') {
+            elseif ($LinuxDistro -eq 'arch') {
                 $mirror_list = [System.IO.File]::ReadAllText('/etc/pacman.d/mirrorlist')
                 $tsinghua_mirror = 'https://mirrors.tuna.tsinghua.edu.cn/archlinux/$repo/os/$arch'
                 if (!$mirror_list.Contains($tsinghua_mirror)) {
                     Write-Host "Are want add tsinghua mirror for speed up package install in china region? (y/N)" -NoNewline
                     $answer = Read-Host
                     if ($answer -like 'y*') {
-                        $mirror_list = "$tsinghua_mirror`n$mirror_list"
+                        $mirror_list = "Server = $tsinghua_mirror`n$mirror_list"
                         $mirror_list_tmp_file = (Join-Path $AX_ROOT 'mirrorlist')
                         [System.IO.File]::WriteAllText($mirror_list_tmp_file, $mirror_list)
                         sudo mv -f $mirror_list_tmp_file /etc/pacman.d/mirrorlist
@@ -388,7 +383,10 @@ else {
                 }
 
                 $DEPENDS = @(
+                    'gcc',
                     'git',
+                    'less', # for git diff
+                    'pkgconf',
                     'cmake',
                     'make',
                     'libx11',
@@ -398,16 +396,35 @@ else {
                     'libxi',
                     'fontconfig',
                     'gtk3',
-                    'webkit2gtk',
                     'vlc',
                     'wayland',
                     'wayland-protocols',
                     'libglvnd'
                 )
+
+                if ($(pacman -Si webkit2gtk -q 2>$null)) 
+                {
+                    $DEPENDS += 'webkit2gtk'
+                }
+                else
+                {
+                    $DEPENDS += 'webkit2gtk-4.1'
+                }
+
                 sudo pacman -S --needed --noconfirm @DEPENDS
             }
+            elseif($LinuxDistro -eq 'fedora') {
+                $DEPENDS = @(
+                    "gcc",
+                    "g++",
+                    "libX11-devel",
+                    "gtk3-devel",
+                    "libXxf86vm-devel"
+                )
+                sudo dnf install -y --setopt=install_weak_deps=False @DEPENDS
+            }
             else {
-                println "Warning: current Linux distro isn't officially supported by axmol community"
+                println "Warning: current Linux distro: $LinuxDistro isn't officially supported by axmol community, you need install dependencies manually"
             }
         }
     }

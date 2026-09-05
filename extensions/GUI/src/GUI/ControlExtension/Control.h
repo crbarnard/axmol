@@ -32,6 +32,7 @@
 
 #include "ControlUtils.h"
 #include "axmol/2d/Layer.h"
+#include "axmol/base/PointerEvent.h"
 #include "extensions/ExtensionExport.h"
 
 NS_AX_EXT_BEGIN
@@ -60,11 +61,11 @@ class Invocation;
  *
  * To use the Control you have to subclass it.
  */
-class AX_EX_DLL Control : public Layer
+class AX_EXT_API Control : public Layer
 {
 public:
     /** Kinds of possible events for the control objects. */
-    enum class AX_EX_DLL EventType
+    enum class AX_EXT_API EventType
     {
         TOUCH_DOWN   = 1 << 0,  // A touch-down event in the control.
         DRAG_INSIDE  = 1 << 1,  // An event where a finger is dragged inside the bounds of the control.
@@ -159,12 +160,12 @@ public:
      * control space coordinates.
      * @param touch A Touch object that represents a touch.
      */
-    virtual Vec2 getTouchLocation(Touch* touch);
+    virtual Vec2 getTouchLocation(ax::PointerEvent* touch);
 
-    virtual bool onTouchBegan(Touch* touch, Event* event);
-    virtual void onTouchMoved(Touch* touch, Event* event);
-    virtual void onTouchEnded(Touch* touch, Event* event);
-    virtual void onTouchCancelled(Touch* touch, Event* event);
+    virtual bool onPointerDown(PointerEvent* event);
+    virtual void onPointerMove(PointerEvent* event);
+    virtual void onPointerUp(PointerEvent* event);
+    virtual void onPointerCancel(PointerEvent* event);
 
     /**
      * Returns a boolean value that indicates whether a touch is inside the bounds
@@ -174,7 +175,7 @@ public:
      *
      * @return Whether a touch is inside the receiver's rect.
      */
-    virtual bool isTouchInside(Touch* touch);
+    virtual bool isTouchInside(PointerEvent* touch);
 
     // Overrides
     bool isOpacityModifyRGB() const override;
@@ -250,6 +251,8 @@ protected:
     bool _selected;
     bool _highlighted;
 
+    bool _isPressed{false};
+
     /** True if all of the controls parents are visible */
     bool _hasVisibleParents;
 
@@ -270,7 +273,7 @@ private:
     AX_DISALLOW_COPY_AND_ASSIGN(Control);
 };
 
-AX_EX_DLL Control::EventType operator|(Control::EventType a, Control::EventType b);
+AX_EXT_API Control::EventType operator|(Control::EventType a, Control::EventType b);
 
 // end of GUI group
 /// @}

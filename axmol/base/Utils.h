@@ -28,7 +28,7 @@ THE SOFTWARE.
 
 #include <vector>
 #include <string>
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/base/Macros.h"
 #include "axmol/base/RefPtr.h"
 #include "axmol/base/Data.h"
@@ -80,7 +80,6 @@ int nextPOT(int value);
  * @param filename specify a filename where the snapshot is stored. This parameter can be either an absolute path or a
  * simple base filename ("hello.png" etc.), don't use a relative path containing directory names.("mydir/hello.png"
  * etc.).
- * @since v4.0 with axmol
  */
 AX_DLL void captureScreen(std::function<void(RefPtr<Image>)> imageCallback);
 
@@ -88,7 +87,6 @@ AX_DLL void captureScreen(std::function<void(RefPtr<Image>)> imageCallback);
  * @param startNode specify the snapshot Node. It should be ax::Scene
  * @param scale
  * @returns: return a Image, then can call saveToFile to save the image as "xxx.png or xxx.jpg".
- * @since v4.0 with axmol
  */
 AX_DLL void captureNode(Node* startNode, std::function<void(RefPtr<Image>)> imageCallback, float scale = 1.0f);
 
@@ -99,7 +97,6 @@ AX_DLL void captureNode(Node* startNode, std::function<void(RefPtr<Image>)> imag
  * @param filename specify a filename where the snapshot is stored. This parameter can be either an absolute path or a
  * simple base filename ("hello.png" etc.), don't use a relative path containing directory names.("mydir/hello.png"
  * etc.).
- * @since v4.0
  */
 AX_DLL void captureScreen(std::function<void(bool, std::string_view)> afterCap, std::string_view filename);
 
@@ -110,12 +107,13 @@ AX_DLL void captureScreen(std::function<void(bool, std::string_view)> afterCap, 
  * @param node The node to find
  * @param name The name to search for, it supports c++ 11 expression
  * @return Array of Nodes that matches the name
- * @since v3.2
  */
 AX_DLL std::vector<Node*> findChildren(const Node& node, std::string_view name);
 
+#
+
 /** Same to ::atof, but strip the string, remain 7 numbers after '.' before call atof.
- * Why we need this? Because in android c++_static, atof ( and std::atof ) is unsupported for numbers have long decimal
+ * Why we need this? Because in android c++_static, atof ( and atof ) is unsupported for numbers have long decimal
  * part and contain several numbers can approximate to 1 ( like 90.099998474121094 ), it will return inf. This function
  * is used to fix this bug.
  * @param str The string be to converted to double.
@@ -479,7 +477,7 @@ AX_DLL uint32_t fourccValue(std::string_view str);
  * Parses a 2D vector from a string representation.
  *
  * @param str  String in the form "{x,y}" where x and y are numeric values.
- *             Example: "{3,4}" → Vec2(3, 4)
+ *             Example: "{3,4}" -> Vec2(3, 4)
  * @return     A Vec2 initialized with the parsed coordinates.
  */
 AX_DLL Vec2 parseVec2(std::string_view str);
@@ -489,7 +487,7 @@ AX_DLL Vec2 parseVec2(std::string_view str);
  *
  * @param str  String in the form "{{x,y},{w,h}}" where (x,y) is the rectangle origin
  *             and (w,h) is its size. All values are numeric.
- *             Example: "{{4,3},{5,6}}" → Rect(origin=(4, 3), size=(5, 6))
+ *             Example: "{{4,3},{5,6}}" -> Rect(origin=(4, 3), size=(5, 6))
  * @return     A Rect initialized with the parsed origin and size.
  */
 AX_DLL Rect parseRect(std::string_view str);

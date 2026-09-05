@@ -14,6 +14,7 @@
 
 [![Latest Release](https://img.shields.io/github/v/release/axmolengine/axmol?label=release)](https://github.com/axmolengine/axmol/releases)
 [![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/axmolengine/axmol)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/81fa1aba09ab41a98b949064b928d06e)](https://www.codacy.com/gh/axmolengine/axmol/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=axmolengine/axmol&amp;utm_campaign=Badge_Grade)
 [![cxxstd](https://img.shields.io/badge/cxxstd-c++20-8A2BE2.svg)](https://github.com/axmolengine/axmol)  
 
@@ -48,8 +49,7 @@
 
 ## ⚡️构建
 
-* 下载: [官方最新发布](https://github.com/axmolengine/axmol/releases) / [AtomGit 镜像仓库](https://atomgit.com/axmol/axmol) / [SourceForge 镜像](https://sourceforge.net/projects/axmol-engine.mirror) / [Gitee 镜像仓库](https://gitee.com/simdsoft/axmol)
-* [如何安装](docs/DevSetup.md)
+👉 [安装与构建指南](docs/DevSetup.md)
 
 如果你有一个 Cocos2d-x 项目, 可以很容易迁移到 Axmol。 我们准备了 [迁移指导](https://github.com/axmolengine/axmol/wiki/Cocos2d%E2%80%90x-migration-guide)。
 
@@ -92,20 +92,21 @@ Axmol 引擎在 Cocos2d-x v4.0 的基础上进行迭代和改进。现在速度�
 
 * iOS、tvOS (x64, arm64)
 * Android (x86, x64, armv7, arm64)
-* Windows (x86, x64)
-* Linux (x64)
+* Windows (x86, x64, arm64)
+* Linux (x64, arm64)
 * OSX (x64, arm64)
 * UWP (x64, arm64)
 * Wasm32, Wasm64(axmo-v3 版本新增)
 
+*注意: Axmol v3 开始提供对 Linux 和 Windows 的 arm64 构建支持*
+
 **支持2D物理引擎** ([更多相关信息](https://github.com/axmolengine/axmol/wiki/2D-Physics-Engines-informations)):
 
 * Box2D
-* ~~Chipmunk2D~~  (已从 `dev` (axmol-v3) 分支移除)
 
 **支持3D物理引擎**:
 
-* Bullet Physics SDK
+* JoltPhysics
 
 **支持扩展**:
 
@@ -163,22 +164,22 @@ Axmol 引擎在 Cocos2d-x v4.0 的基础上进行迭代和改进。现在速度�
 * 请不要忘记将主题 axmol 和 axmolengine 添加到您创建的任何相关存储库中
 * 在 GitHub 上添加星也将有助于 Axmol 的成长。谢谢你!
 
-如果您发现 Axmol 引擎有帮助，请考虑在 [https://axmol.dev/donate](https://axmol.dev/donate) 赞助，非常感谢！
+如果您觉得 [Axmol Engine](https://axmol.dev) 对您有所帮助，欢迎支持其持续开发：[https://axmol.dev/sponsor](https://axmol.dev/sponsor)，非常感谢！
 
-## Sponsors
+## 支持者
 
-#### Platinum Sponsors
+#### 企业钻石级支持者
 <p align="left">
   <a href="https://scorewarrior.com/?ad=axmol" target=_blank><img
-    src="https://cdn.prod.website-files.com/633da33305ac754156026dd8/63566f1edf5f0712f94f7f1b_sw-triangle-821890.svg" height="120"
+    src="https://cdn.prod.website-files.com/633da33305ac754156026dd8/63566f1edf5f0712f94f7f1b_sw-triangle-821890.svg" height="160"
   /></a>
 </p>
 
 <p>&nbsp;</p>
 
-#### More Sponsors
+#### 更多支持者
 
-Please visit: [https://axmol.dev/donate](https://axmol.dev/donate)
+请访问： [我们的官方支持者页面](https://axmol.dev/sponsor)
 
 ## 社区
 
@@ -193,7 +194,7 @@ Please visit: [https://axmol.dev/donate](https://axmol.dev/donate)
 ## 参考链接
 
 - [1kiss](https://github.com/simdsoft/1kiss): 一个由 PowerShell 编写的能够自动配置各平台编译工具链的跨平台构建工具。
-- [axslcc](https://github.com/axmolengine/axslcc): Axmol 引擎专用跨平台 Shader 编译器（fork 自 `glslcc`)。
+- [axslcc](https://github.com/axmolengine/axslcc): Axmol v3 的 HLSL-first 跨平台 shader 编译工具，为 Axmol RHI 提供统一 shader 工作流。
 - [Cocos2d-x](https://github.com/cocos2d/cocos2d-x)：原 Cocos2d-x 官方引擎仓库。
 
 ## Axmol 活跃状态

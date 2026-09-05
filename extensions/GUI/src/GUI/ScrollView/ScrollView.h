@@ -27,7 +27,7 @@
 #pragma once
 
 #include "axmol/2d/Layer.h"
-#include "axmol/base/EventListenerTouch.h"
+#include "axmol/base/PointerEventListener.h"
 #include "axmol/2d/ActionTween.h"
 #include "extensions/ExtensionMacros.h"
 #include "extensions/ExtensionExport.h"
@@ -40,7 +40,7 @@ NS_AX_EXT_BEGIN
 
 class ScrollView;
 
-class AX_EX_DLL ScrollViewDelegate
+class AX_EXT_API ScrollViewDelegate
 {
 public:
     /**
@@ -61,7 +61,7 @@ public:
  * ScrollView support for cocos2d-x.
  * It provides scroll view functionalities to cocos2d projects natively.
  */
-class AX_EX_DLL ScrollView : public Layer, public ActionTweenDelegate
+class AX_EXT_API ScrollView : public Layer, public ActionTweenDelegate
 {
 public:
     enum class Direction
@@ -185,7 +185,6 @@ public:
 
     void setTouchEnabled(bool enabled);
     bool isTouchEnabled() const;
-    void setSwallowTouches(bool needSwallow);
     bool isDragging() const { return _dragging; }
     bool isTouchMoved() const { return _touchMoved; }
     bool isBounceable() const { return _bounceable; }
@@ -228,10 +227,13 @@ public:
     bool isClippingToBounds() { return _clippingToBounds; }
     void setClippingToBounds(bool bClippingToBounds) { _clippingToBounds = bClippingToBounds; }
 
-    virtual bool onTouchBegan(Touch* touch, Event* event);
-    virtual void onTouchMoved(Touch* touch, Event* event);
-    virtual void onTouchEnded(Touch* touch, Event* event);
-    virtual void onTouchCancelled(Touch* touch, Event* event);
+    bool onPointerHitTest(PointerEvent* event, Vec3* outHitPoint) override;
+
+    virtual bool onPointerDown(PointerEvent*);
+    virtual void onPointerMove(PointerEvent*);
+    virtual void onPointerUp(PointerEvent*);
+    virtual void onPointerCancel(PointerEvent*);
+    virtual bool onPointerScroll(PointerEvent*);
 
     // Overrides
     void setContentSize(const Size& size) override;
@@ -239,7 +241,7 @@ public:
     /**
      * @lua NA
      */
-    void visit(Renderer* renderer, const Mat4& parentTransform, uint32_t parentFlags) override;
+    void visit(const SceneRenderState& state, const Mat4& parentTransform, uint32_t parentFlags) override;
 
     using Node::addChild;
     void addChild(Node* child, int zOrder, int tag) override;
@@ -294,6 +296,8 @@ protected:
     void handleZoom();
 
     Rect getViewRect();
+    bool getPointerLocalPoint(PointerEvent* event, Node* node, Vec2* outLocalPoint) const;
+    bool isPointerInView(PointerEvent* event, Vec2* outLocalPoint = nullptr);
 
     /**
      * scroll view delegate
@@ -349,7 +353,7 @@ protected:
     /**
      * Touch objects to detect multitouch
      */
-    std::vector<Touch*> _touches;
+    std::vector<PointerEvent*> _touches;
     /**
      * size to clip. Node boundingBox uses contentSize directly.
      * It's semantically different what it actually means to common scroll views.
@@ -367,7 +371,7 @@ protected:
     bool _scissorRestored;
 
     /** Touch listener */
-    EventListenerTouchOneByOne* _touchListener;
+    PointerEventListener* _touchListener;
 
     // CustomCommand _beforeDrawCommand;
     // CustomCommand _afterDrawCommand;

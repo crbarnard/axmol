@@ -28,6 +28,7 @@ THE SOFTWARE.
 #pragma once
 
 #include "axmol/base/Object.h"
+#include "axmol/base/RefPtr.h"
 #include "axmol/base/Types.h"
 #include "axmol/base/Director.h"
 #include "axmol/renderer/GroupCommand.h"
@@ -39,6 +40,9 @@ namespace ax
 
 class Texture2D;
 class Node;
+class NodeGrid;
+class RenderTexturePass;
+struct SceneRenderState;
 
 namespace rhi
 {
@@ -69,7 +73,7 @@ public:
     /**@}*/
 
     /**Interface used to blit the texture with grid to screen.*/
-    virtual void blit() = 0;
+    virtual void blit(const SceneRenderState& state) = 0;
     /**Interface, Reuse the grid vertices.*/
     virtual void reuse() = 0;
     /**Interface, Calculate the vertices used for the blit.*/
@@ -119,11 +123,8 @@ public:
      Init and reset the status when render effects by using the grid.
      */
     void beforeDraw();
-    void afterDraw(Node* target);
+    void afterDraw(Node* target, const SceneRenderState& state);
     /**@}*/
-
-    /**Change projection to 2D for grabbing.*/
-    void set2DProjection();
 
     /**
      * @brief Set the effect grid rect.
@@ -137,6 +138,13 @@ public:
     const Rect& getGridRect() const { return _gridRect; }
 
 protected:
+    friend class NodeGrid;
+
+    /** Internal NodeGrid hook: project uploaded blit vertices/UVs through
+     *  the capture camera while still drawing with the grid ortho camera.
+     */
+    void setScreenProjectionForBlit(const Mat4* projection, const Vec2& size);
+
     void updateBlendState();
 
     bool _active   = false;
@@ -144,8 +152,7 @@ protected:
     Vec2 _gridSize;
     Texture2D* _texture = nullptr;
     Vec2 _step;
-    bool _isTextureFlipped                   = false;
-    Director::Projection _directorProjection = Director::Projection::_2D;
+    bool _isTextureFlipped = false;
     Rect _gridRect;
 
     Color _clearColor = {0, 0, 0, 0};
@@ -156,9 +163,8 @@ protected:
     // CallbackCommand _beforeBlitCommand;
     // CallbackCommand _afterBlitCommand;
 
-    // New
-    rhi::RenderTarget* _oldRenderTarget = nullptr;
-    rhi::RenderTarget* _renderTarget    = nullptr;
+    rhi::RenderTarget* _renderTarget = nullptr;
+    RefPtr<RenderTexturePass> _renderTexturePass;
 
     rhi::UniformLocation _mvpMatrixLocation;
     rhi::UniformLocation _textureLocation;
@@ -166,6 +172,10 @@ protected:
     rhi::VertexLayout* _vertexLayout = nullptr;
 
     BlendFunc _blendFunc;
+
+    bool _screenProjectionForBlitEnabled = false;
+    Mat4 _screenProjectionForBlit        = Mat4::identity;
+    Vec2 _screenProjectionForBlitSize;
 };
 
 /**
@@ -211,7 +221,7 @@ public:
      */
     void beforeBlit() override;
     void afterBlit() override;
-    void blit() override;
+    void blit(const SceneRenderState& state) override;
     void reuse() override;
     void calculateVertexPoints() override;
     /**@}*/
@@ -255,7 +265,7 @@ public:
     /**@{
      Implementations for interfaces in base class.
      */
-    void blit() override;
+    void blit(const SceneRenderState& state) override;
     void reuse() override;
     void calculateVertexPoints() override;
     /**@}*/

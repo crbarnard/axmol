@@ -29,13 +29,13 @@
 
 namespace ax::rhi::vk
 {
-class DriverImpl;
+class GraphicsDeviceImpl;
 class RenderTargetImpl : public RenderTarget
 {
 public:
     using Attachment = TextureImpl*;
 
-    RenderTargetImpl(DriverImpl* driver, bool defaultRenderTarget);
+    RenderTargetImpl(GraphicsDeviceImpl* driver, bool defaultRenderTarget);
     ~RenderTargetImpl();
 
     // Destroy the current live framebuffer and mark attachments dirty
@@ -64,13 +64,15 @@ public:
 
     void setColorTexture(Texture* texture, int level = 0, int index = 0) override;
 
+    uint32_t getColorAttachmentCount() const { return _numMRT; }
+
 private:
     void updateRenderPass(const RenderPassDesc& desc, uint32_t imageIndex);
     void updateFramebuffer(VkCommandBuffer cmd, uint32_t imageIndex);
 
     void prepareAttachmentsForRendering(VkCommandBuffer cmd);
 
-    DriverImpl* _driver{nullptr};
+    GraphicsDeviceImpl* _driver{nullptr};
 
     // Current attachment views for building renderpass/framebuffer
     tlx::inlined_vector<VkImageView, INITIAL_COLOR_CAPACITY + 1> _attachmentViews{};
@@ -80,6 +82,8 @@ private:
     tlx::inlined_vector<uint64_t, INITIAL_COLOR_CAPACITY> _renderHashSeeds{};
 
     tlx::pod_vector<VkClearValue> _clearValues;
+
+    uint32_t _numMRT{0};  // number of color attachments, used for render pass creation
 
     uint64_t _activeHashSeed{0};
 

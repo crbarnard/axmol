@@ -24,7 +24,7 @@
  ****************************************************************************/
 
 #include "axmol/rhi/metal/UtilsMTL.h"
-#include "axmol/rhi/metal/DriverMTL.h"
+#include "axmol/rhi/metal/GraphicsDeviceMTL.h"
 #include "axmol/rhi/metal/TextureMTL.h"
 #include "axmol/rhi/RHIUtils.h"
 
@@ -36,7 +36,7 @@ MTLPixelFormat getSupportedDepthStencilFormat()
 {
     MTLPixelFormat pixelFormat = MTLPixelFormatDepth32Float_Stencil8;
 #if (AX_TARGET_PLATFORM == AX_PLATFORM_MAC)
-    bool isDepth24Stencil8PixelFormatSupported = DriverImpl::supportD24S8();
+    bool isDepth24Stencil8PixelFormatSupported = GraphicsDeviceImpl::supportD24S8();
     if (isDepth24Stencil8PixelFormatSupported)
         pixelFormat = MTLPixelFormatDepth24Unorm_Stencil8;
 #endif
@@ -129,9 +129,9 @@ void UtilsMTL::initGPUTextureFormats()
     info.fmt   = getSupportedDepthStencilFormat();
 }
 
-MTLPixelFormat UtilsMTL::getDefaultColorAttachmentPixelFormat()
+PixelFormat UtilsMTL::getDefaultColorAttachmentPixelFormat()
 {
-    return MTLPixelFormatBGRA8Unorm;
+    return PixelFormat::BGRA8;
 }
 
 MTLPixelFormat UtilsMTL::getDefaultDepthStencilAttachmentPixelFormat()
@@ -150,7 +150,7 @@ MTLPixelFormat UtilsMTL::toMTLPixelFormat(PixelFormat textureFormat)
 
 void UtilsMTL::generateMipmaps(id<MTLTexture> texture)
 {
-    auto cmdQueue = static_cast<DriverImpl*>(axdrv)->getMTLCmdQueue();
+    auto cmdQueue = static_cast<GraphicsDeviceImpl*>(axdrv)->getMTLCmdQueue();
     @autoreleasepool
     {
         auto oneOffBuffer                        = [cmdQueue commandBuffer];
@@ -161,7 +161,7 @@ void UtilsMTL::generateMipmaps(id<MTLTexture> texture)
     }
 }
 
-void UtilsMTL::swizzleImage(unsigned char* image, std::size_t width, std::size_t height, MTLPixelFormat format)
+void UtilsMTL::swizzleImage(unsigned char* image, size_t width, size_t height, MTLPixelFormat format)
 {
     if (!image)
         return;

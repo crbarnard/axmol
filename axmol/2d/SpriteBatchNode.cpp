@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include "axmol/base/Director.h"
 #include "axmol/base/Profiling.h"
 #include "axmol/base/text_utils.h"
+#include "axmol/scene/Camera.h"
 #include "axmol/renderer/TextureCache.h"
 #include "axmol/renderer/Renderer.h"
 #include "axmol/renderer/QuadCommand.h"
@@ -165,7 +166,7 @@ SpriteBatchNode::~SpriteBatchNode()
 
 // override visit
 // don't call visit on it's children
-void SpriteBatchNode::visit(Renderer* renderer, const Mat4& parentTransform, uint32_t parentFlags)
+void SpriteBatchNode::visit(const SceneRenderState& state, const Mat4& parentTransform, uint32_t parentFlags)
 {
     AX_PROFILER_START_CATEGORY(kProfilerCategoryBatchSprite, "CCSpriteBatchNode - visit");
 
@@ -183,19 +184,11 @@ void SpriteBatchNode::visit(Renderer* renderer, const Mat4& parentTransform, uin
 
     sortAllChildren();
 
-    uint32_t flags = processParentFlags(parentTransform, parentFlags);
+    uint32_t flags = processParentFlags(state, parentTransform, parentFlags);
 
-    if (isVisitableByVisitingCamera())
+    if (isVisitableByCamera(state.cameraFlag))
     {
-        // IMPORTANT:
-        // To ease the migration to v3.0, we still support the Mat4 stack,
-        // but it is deprecated and your code should not rely on it
-        _director->pushMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW);
-        _director->loadMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW, _modelViewTransform);
-
-        draw(renderer, _modelViewTransform, flags);
-
-        _director->popMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW);
+        draw(state, _modelViewTransform, flags);
         // FIX ME: Why need to set _orderOfArrival to 0??
         // Please refer to https://github.com/cocos2d/cocos2d-x/pull/6920
         //    setOrderOfArrival(0);
@@ -412,7 +405,7 @@ void SpriteBatchNode::reorderBatch(bool reorder)
     _reorderChildDirty = reorder;
 }
 
-void SpriteBatchNode::draw(Renderer* renderer, const Mat4& transform, uint32_t flags)
+void SpriteBatchNode::draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags)
 {
     // Optimization: Fast Dispatch
     if (_textureAtlas->getTotalQuads() == 0)
@@ -425,12 +418,12 @@ void SpriteBatchNode::draw(Renderer* renderer, const Mat4& transform, uint32_t f
         child->updateTransform();
     }
 
-    const auto& matrixProjection = _director->getMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_PROJECTION);
+    const auto& matrixProjection = state.getViewProjectionMatrix();
     auto programState            = _quadCommand.unsafePS();
     programState->setUniform(_mvpMatrixLocaiton, matrixProjection.m, sizeof(matrixProjection.m));
     _quadCommand.init(_globalZOrder, _textureAtlas->getTexture(), _blendFunc, _textureAtlas->getQuads(),
-                      _textureAtlas->getTotalQuads(), transform, flags);
-    renderer->addCommand(&_quadCommand);
+                      _textureAtlas->getTotalQuads(), transform, flags, state.getView());
+    state.getRenderer()->addCommand(&_quadCommand);
 }
 
 void SpriteBatchNode::increaseAtlasCapacity()

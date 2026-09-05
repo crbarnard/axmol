@@ -1,16 +1,16 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated July 28, 2023. Replaces all prior versions.
+ * Last updated April 5, 2025. Replaces all prior versions.
  *
- * Copyright (c) 2013-2023, Esoteric Software LLC
+ * Copyright (c) 2013-2025, Esoteric Software LLC
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
  * conditions of Section 2 of the Spine Editor License Agreement:
  * http://esotericsoftware.com/spine-editor-license
  *
- * Otherwise, it is permitted to integrate the Spine Runtimes into software or
- * otherwise create derivative works of the Spine Runtimes (collectively,
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
  * "Products"), provided that each user of the Products must obtain their own
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
@@ -23,8 +23,8 @@
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
  * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE
- * SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #ifndef Spine_MathUtil_h
@@ -44,17 +44,23 @@ namespace spine {
 		MathUtil();
 
 	public:
+		static const float Epsilon;
+		static const float EpsilonSq;
 		static const float Pi;
 		static const float Pi_2;
-        static const float InvPi_2;
+		static const float InvPi_2;
 		static const float Deg_Rad;
 		static const float Rad_Deg;
 
 		template<typename T>
-		static inline T min(T a, T b) { return a < b ? a : b; }
+		static inline T min(T a, T b) {
+			return a < b ? a : b;
+		}
 
 		template<typename T>
-		static inline T max(T a, T b) { return a > b ? a : b; }
+		static inline T max(T a, T b) {
+			return a > b ? a : b;
+		}
 
 		static float sign(float val);
 
@@ -78,7 +84,7 @@ namespace spine {
 		/// degrees), largest error of 0.00488 radians (0.2796 degrees).
 		static float atan2(float y, float x);
 
-        static float atan2Deg(float x, float y);
+		static float atan2Deg(float x, float y);
 
 		static float acos(float v);
 
@@ -88,7 +94,7 @@ namespace spine {
 
 		static bool isNan(float v);
 
-        static float quietNan();
+		static float quietNan();
 
 		static float random();
 
@@ -98,42 +104,8 @@ namespace spine {
 
 		static float pow(float a, float b);
 
-        static float ceil(float v);
+		static float ceil(float v);
 	};
-
-	struct SP_API Interpolation {
-		virtual float apply(float a) = 0;
-
-		virtual float interpolate(float start, float end, float a) {
-			return start + (end - start) * apply(a);
-		}
-
-		virtual ~Interpolation() {};
-	};
-
-	struct SP_API PowInterpolation : public Interpolation {
-		PowInterpolation(int power) : power(power) {
-		}
-
-		float apply(float a) {
-			if (a <= 0.5f) return MathUtil::pow(a * 2.0f, (float) power) / 2.0f;
-			return MathUtil::pow((a - 1.0f) * 2.0f, (float) power) / (power % 2 == 0 ? -2.0f : 2.0f) + 1.0f;
-		}
-
-		int power;
-	};
-
-	struct SP_API PowOutInterpolation : public Interpolation {
-		PowOutInterpolation(int power) : power(power) {
-		}
-
-		float apply(float a) {
-			return MathUtil::pow(a - 1, (float) power) * (power % 2 == 0 ? -1.0f : 1.0f) + 1.0f;
-		}
-
-		int power;
-	};
-
 }
 
 #endif /* Spine_MathUtil_h */

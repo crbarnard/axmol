@@ -27,17 +27,18 @@ THE SOFTWARE.
 
 #include <vector>
 
-#include "axmol/2d/Node.h"
-#include "axmol/2d/Camera.h"
+#include "axmol/scene/Node.h"
+#include "axmol/scene/Camera.h"
 #include "axmol/renderer/Texture2D.h"
 #include "axmol/renderer/MeshCommand.h"
 #include "axmol/renderer/CallbackCommand.h"
 #include "axmol/renderer/GroupCommand.h"
 #include "axmol/renderer/RenderState.h"
 #include "axmol/rhi/ProgramState.h"
-#include "axmol/3d/AABB.h"
-#include "axmol/3d/Ray.h"
-#include "axmol/base/EventListenerCustom.h"
+#include "axmol/math/AABB.h"
+#include "axmol/math/Plane.h"
+#include "axmol/math/Ray.h"
+#include "axmol/base/CustomEventListener.h"
 #include "axmol/base/EventDispatcher.h"
 
 namespace ax
@@ -100,7 +101,7 @@ public:
         INCREASE_LOWER,
     };
 
-    /* must match in shader terrain.frag
+    /* must match in shader terrain_fs.hlsl
         layout(binding = 0) uniform sampler2D u_details[4]; // will take slot 0~3
         layout(binding = 4) uniform sampler2D u_alphaMap;
         layout(binding = 5) uniform sampler2D u_lightMap;
@@ -322,7 +323,7 @@ private:
         /**recursively set itself and its children is need to draw*/
         void resetNeedDraw(bool value);
         /**recursively potential visible culling*/
-        void cullByCamera(const Camera* camera, const Mat4& worldTransform);
+        void cullByCamera(const Plane viewProjectionPlanes[6], const Mat4& worldTransform);
         /**precalculate the AABB(In world space) of each quad*/
         void preCalculateAABB(const Mat4& worldTransform);
         QuadTree* _tl;
@@ -414,7 +415,9 @@ public:
     void setDetailMap(unsigned int index, DetailMap detailMap);
 
     // Overrides, internal use only
-    void draw(ax::Renderer* renderer, const ax::Mat4& transform, uint32_t flags) override;
+    void draw(const ax::SceneRenderState& state, const ax::Mat4& transform, uint32_t flags) override;
+    bool onPointerHitTest(PointerEvent* event, Vec3* outHitPoint) override;
+
     /**
      * Ray-Terrain intersection.
      * @return the intersection point
@@ -584,7 +587,7 @@ private:
 
     rhi::UniformLocation _mvpMatrixLocation;
 #if AX_ENABLE_CONTEXT_LOSS_RECOVERY
-    EventListenerCustom* _backToForegroundListener;
+    CustomEventListener* _backToForegroundListener;
 #endif
 };
 

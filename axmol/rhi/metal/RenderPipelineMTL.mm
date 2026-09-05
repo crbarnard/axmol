@@ -24,55 +24,55 @@
  ****************************************************************************/
 
 #include "axmol/rhi/metal/RenderPipelineMTL.h"
-#include "axmol/rhi/metal/DriverMTL.h"
+#include "axmol/rhi/metal/GraphicsDeviceMTL.h"
 #include "axmol/rhi/metal/RenderTargetMTL.h"
 #include "axmol/rhi/metal/ShaderModuleMTL.h"
 #include "axmol/rhi/metal/DepthStencilStateMTL.h"
 #include "axmol/rhi/metal/UtilsMTL.h"
 #include "axmol/rhi/metal/ProgramMTL.h"
-#include "xxhash.h"
+#include "xxhash/xxhash.h"
 
 namespace ax::rhi::mtl
 {
 
 namespace
 {
-static MTLVertexFormat toMTLVertexFormat(VertexFormat vertexFormat, bool needNormalize)
+static MTLVertexFormat toMTLVertexFormat(VertexElementType vertexFormat, bool needNormalize)
 {
     MTLVertexFormat ret = MTLVertexFormatFloat4;
     switch (vertexFormat)
     {
-    case VertexFormat::FLOAT4:
+    case VertexElementType::FLOAT4:
         ret = MTLVertexFormatFloat4;
         break;
-    case VertexFormat::FLOAT3:
+    case VertexElementType::FLOAT3:
         ret = MTLVertexFormatFloat3;
         break;
-    case VertexFormat::FLOAT2:
+    case VertexElementType::FLOAT2:
         ret = MTLVertexFormatFloat2;
         break;
-    case VertexFormat::FLOAT:
+    case VertexElementType::FLOAT:
         ret = MTLVertexFormatFloat;
         break;
-    case VertexFormat::INT4:
+    case VertexElementType::INT4:
         ret = MTLVertexFormatInt4;
         break;
-    case VertexFormat::INT3:
+    case VertexElementType::INT3:
         ret = MTLVertexFormatInt3;
         break;
-    case VertexFormat::INT2:
+    case VertexElementType::INT2:
         ret = MTLVertexFormatInt2;
         break;
-    case VertexFormat::INT:
+    case VertexElementType::INT:
         ret = MTLVertexFormatInt;
         break;
-    case VertexFormat::USHORT4:
+    case VertexElementType::USHORT4:
         ret = MTLVertexFormatUShort4;
         break;
-    case VertexFormat::USHORT2:
+    case VertexElementType::USHORT2:
         ret = MTLVertexFormatUShort2;
         break;
-    case VertexFormat::UBYTE4:
+    case VertexElementType::UBYTE4:
         if (needNormalize)
             ret = MTLVertexFormatUChar4Normalized;
         else
@@ -240,27 +240,28 @@ void RenderPipelineImpl::setVertexLayout(MTLRenderPipelineDescriptor* mtlDesc, c
     auto vertexLayout = desc.vertexLayout;
     assert(vertexLayout);
 
-    auto vertexDesc                                                            = mtlDesc.vertexDescriptor;
-    vertexDesc.layouts[DriverImpl::DEFAULT_ATTRIBS_BINDING_INDEX].stride       = vertexLayout->getStride();
-    vertexDesc.layouts[DriverImpl::DEFAULT_ATTRIBS_BINDING_INDEX].stepFunction = MTLVertexStepFunctionPerVertex;
+    auto vertexDesc                                                                    = mtlDesc.vertexDescriptor;
+    vertexDesc.layouts[GraphicsDeviceImpl::DEFAULT_ATTRIBS_BINDING_INDEX].stride       = vertexLayout->getStride();
+    vertexDesc.layouts[GraphicsDeviceImpl::DEFAULT_ATTRIBS_BINDING_INDEX].stepFunction = MTLVertexStepFunctionPerVertex;
 
     unsigned int instanceAttribCount = 0;
     for (const auto& bindingDesc : vertexLayout->getBindings())
     {
-        if (bindingDesc.format != VertexFormat::MAT4)
+        if (bindingDesc.format != VertexElementType::MAT4)
         {
             auto attrib   = vertexDesc.attributes[bindingDesc.index];
             attrib.format = toMTLVertexFormat(bindingDesc.format, bindingDesc.needToBeNormallized);
             attrib.offset = bindingDesc.offset;
             if (!bindingDesc.instanceStepRate)
             {
-                attrib.bufferIndex = DriverImpl::DEFAULT_ATTRIBS_BINDING_INDEX;
+                attrib.bufferIndex = GraphicsDeviceImpl::DEFAULT_ATTRIBS_BINDING_INDEX;
             }
             else
             {
-                attrib.bufferIndex = DriverImpl::VBO_INSTANCING_BINDING_INDEX;
+                attrib.bufferIndex = GraphicsDeviceImpl::VBO_INSTANCING_BINDING_INDEX;
                 ++instanceAttribCount;
-                vertexDesc.layouts[DriverImpl::VBO_INSTANCING_BINDING_INDEX].stepRate = bindingDesc.instanceStepRate;
+                vertexDesc.layouts[GraphicsDeviceImpl::VBO_INSTANCING_BINDING_INDEX].stepRate =
+                    bindingDesc.instanceStepRate;
             }
         }
         else
@@ -273,12 +274,12 @@ void RenderPipelineImpl::setVertexLayout(MTLRenderPipelineDescriptor* mtlDesc, c
                 attrib.offset = bindingDesc.offset + col * colStride;
                 if (!bindingDesc.instanceStepRate)
                 {
-                    attrib.bufferIndex = DriverImpl::DEFAULT_ATTRIBS_BINDING_INDEX;
+                    attrib.bufferIndex = GraphicsDeviceImpl::DEFAULT_ATTRIBS_BINDING_INDEX;
                 }
                 else
                 {
-                    attrib.bufferIndex = DriverImpl::VBO_INSTANCING_BINDING_INDEX;
-                    vertexDesc.layouts[DriverImpl::VBO_INSTANCING_BINDING_INDEX].stepRate =
+                    attrib.bufferIndex = GraphicsDeviceImpl::VBO_INSTANCING_BINDING_INDEX;
+                    vertexDesc.layouts[GraphicsDeviceImpl::VBO_INSTANCING_BINDING_INDEX].stepRate =
                         bindingDesc.instanceStepRate;
                     ++instanceAttribCount;
                 }
@@ -288,8 +289,9 @@ void RenderPipelineImpl::setVertexLayout(MTLRenderPipelineDescriptor* mtlDesc, c
 
     if (instanceAttribCount)
     {
-        vertexDesc.layouts[DriverImpl::VBO_INSTANCING_BINDING_INDEX].stride       = vertexLayout->getInstanceStride();
-        vertexDesc.layouts[DriverImpl::VBO_INSTANCING_BINDING_INDEX].stepFunction = MTLVertexStepFunctionPerInstance;
+        vertexDesc.layouts[GraphicsDeviceImpl::VBO_INSTANCING_BINDING_INDEX].stride = vertexLayout->getInstanceStride();
+        vertexDesc.layouts[GraphicsDeviceImpl::VBO_INSTANCING_BINDING_INDEX].stepFunction =
+            MTLVertexStepFunctionPerInstance;
     }
 }
 

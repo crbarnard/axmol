@@ -30,7 +30,7 @@ function LabelFNTColorAndOpacity.onNodeEvent(tag)
         LabelFNTColorAndOpacity.layer:unscheduleUpdate()
     elseif tag == "enter" then
         if nil ~= LabelFNTColorAndOpacity.layer then
-            LabelFNTColorAndOpacity.layer:scheduleUpdateWithPriorityLua(LabelFNTColorAndOpacity.step, 0)
+            LabelFNTColorAndOpacity.layer:onUpdate(LabelFNTColorAndOpacity.step)
         end
     end
 end
@@ -76,7 +76,7 @@ function LabelFNTColorAndOpacity.create()
     label2:setPosition( VisibleRect:center() )
     label3:setPosition( VisibleRect:rightTop() )
 
-    layer:registerScriptHandler(LabelFNTColorAndOpacity.onNodeEvent)
+    layer:setLifecycleCallback(LabelFNTColorAndOpacity.onNodeEvent)
 
     Helper.titleLabel:setString( "New Label + .FNT file" )
     Helper.subtitleLabel:setString( "Testing opacity + tint" )
@@ -176,7 +176,7 @@ function LabelFNTSpriteActions.create()
     local lastChar = label2:getLetter(3)
     lastChar:runAction(rot_4ever:clone())
 
-    layer:registerScriptHandler(LabelFNTSpriteActions.onNodeEvent)
+    layer:setLifecycleCallback(LabelFNTSpriteActions.onNodeEvent)
 
     Helper.titleLabel:setString("New Label + .FNT file")
     Helper.subtitleLabel:setString( "Using fonts as Sprite objects. Some characters should rotate.")
@@ -452,7 +452,7 @@ function LabelFNTandTTFEmpty.create()
     label2:setAnchorPoint(ax.p(0.5, 0.5))
     label2:setPosition(ax.p(s.width/2, s.height/2))
 
-    layer:registerScriptHandler(LabelFNTandTTFEmpty.onNodeEvent)
+    layer:setLifecycleCallback(LabelFNTandTTFEmpty.onNodeEvent)
 
     LabelFNTandTTFEmpty.setEmpty = false
     Helper.titleLabel:setString("New Label : .FNT file & .TTF file")
@@ -673,23 +673,23 @@ function LabelFNTMultiLineAlignment.create()
     layer:addChild(LabelFNTMultiLineAlignment._pArrowsShouldRetain)
     layer:addChild(stringMenu)
     layer:addChild(alignmentMenu)
-    layer:registerScriptHandler(LabelFNTMultiLineAlignment.onNodeEvent)
+    layer:setLifecycleCallback(LabelFNTMultiLineAlignment.onNodeEvent)
 
-    local function onTouchesBegan(touches, event)
-        local location = touches[1]:getLocationInView()
+    local function onTouchesBegan(event)
+        local location = event:getPoint()
         if ax.rectContainsPoint(LabelFNTMultiLineAlignment._pArrowsShouldRetain:getBoundingBox(), ax.p(location.x, location.y)) then
             LabelFNTMultiLineAlignment._drag = true
             LabelFNTMultiLineAlignment._pArrowsBarShouldRetain:setVisible(true)
         end
     end
 
-    local function onTouchesMoved(touches, event)
+    local function onPointerMove(event)
        if LabelFNTMultiLineAlignment._drag == false then
             return
         end
 
         local canvasSize = ax.Director:getInstance():getCanvasSize()
-        local location = touches[1]:getLocationInView()
+        local location = event:getPoint()
 
         LabelFNTMultiLineAlignment._pArrowsShouldRetain:setPosition(
             math.max(math.min(location.x, ArrowsMax*canvasSize.width), ArrowsMin*canvasSize.width),
@@ -700,16 +700,16 @@ function LabelFNTMultiLineAlignment.create()
         LabelFNTMultiLineAlignment._pLabelShouldRetain:setMaxLineWidth(labelWidth)
     end
 
-    local  function onTouchesEnded(touch, event)
+    local  function onTouchesEnded(event)
         LabelFNTMultiLineAlignment._drag = false
         LabelFNTMultiLineAlignment.snapArrowsToEdge()
         LabelFNTMultiLineAlignment._pArrowsBarShouldRetain:setVisible(false)
     end
 
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(onTouchesBegan,ax.Handler.EVENT_TOUCHES_BEGAN )
-    listener:registerScriptHandler(onTouchesMoved,ax.Handler.EVENT_TOUCHES_MOVED )
-    listener:registerScriptHandler(onTouchesEnded,ax.Handler.EVENT_TOUCHES_ENDED )
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerDown = onTouchesBegan
+    listener.onPointerMove = onPointerMove
+    listener.onPointerUp = onTouchesEnded
 
     local eventDispatcher = layer:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, layer)
@@ -1257,7 +1257,7 @@ function LabelCharMapTest.create()
         label2:setString(info)
     end
 
-    layer:scheduleUpdateWithPriorityLua(step, 0)
+    layer:onUpdate(step)
 
     function onNodeEvent(tag)
         if tag == "exit" then
@@ -1265,7 +1265,7 @@ function LabelCharMapTest.create()
         end
     end
 
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
 
     return layer
 end
@@ -1338,7 +1338,7 @@ function LabelShadowTest.create()
     layer:addChild(shadowLabelBMFont)
 
     local function sliderEvent(sender, eventType)
-        if eventType == ccui.SliderEventType.percentChanged then
+        if eventType == axui.SliderEventType.percentChanged then
             local  slider = layer:getChildByTag(1)
             local  slider2 = layer:getChildByTag(2)
             local offset = ax.size(slider:getPercent() - 50,50 - slider2:getPercent())
@@ -1348,7 +1348,7 @@ function LabelShadowTest.create()
         end
     end
 
-    local slider = ccui.Slider:create()
+    local slider = axui.Slider:create()
     slider:setTag(1)
     slider:setTouchEnabled(true)
     slider:loadBarTexture("cocosui/sliderTrack.png")
@@ -1359,7 +1359,7 @@ function LabelShadowTest.create()
     slider:addEventListener(sliderEvent)
     layer:addChild(slider)
 
-    local slider2 = ccui.Slider:create()
+    local slider2 = axui.Slider:create()
     slider2:setTag(2)
     slider2:setTouchEnabled(true)
     slider2:loadBarTexture("cocosui/sliderTrack.png")
@@ -1426,8 +1426,8 @@ function LabelCharMapColorTest.create()
     end
 
 
-    layer:registerScriptHandler(onNodeEvent)
-    layer:scheduleUpdateWithPriorityLua(step, 0)
+    layer:setLifecycleCallback(onNodeEvent)
+    layer:onUpdate(step)
 
     return layer
 end
@@ -1622,7 +1622,7 @@ function LabelIssue4428Test.create()
     label:setAnchorPoint(ax.p(0.5, 0.5))
     layer:addChild(label)
 
-    local len = label:getStringLength()
+    local len = label:getCharCount()
     for i = 0, len -1 do
         local sprite = label:getLetter(i)
         if nil ~= sprite then

@@ -28,13 +28,14 @@
 
 #include "axmol/base/Config.h"
 #include "axmol/platform/Common.h"
-#include "axmol/base/Touch.h"
-#include "axmol/base/EventTouch.h"
-#include "axmol/base/EventKeyboard.h"
+#include "axmol/base/PointerEvent.h"
+#include "axmol/base/PointerEvent.h"
+#include "axmol/base/KeyboardEvent.h"
 #include "axmol/tlx/utility.hpp"
 #include <map>
 #include <string>
 #include <list>
+#include <functional>
 
 /**
  * @addtogroup base
@@ -131,6 +132,7 @@ public:
      * @lua NA
      */
     static SchedulerScriptHandlerEntry* create(int handler, float interval, bool paused);
+    static SchedulerScriptHandlerEntry* create(const std::function<void(float)>& callback, float interval, bool paused);
 
     /**
      * Destructor of SchedulerScriptHandlerEntry.
@@ -171,6 +173,7 @@ private:
         : ScriptHandlerEntry(handler), _timer(nullptr), _paused(false), _markedForDeletion(false)
     {}
     bool init(float interval, bool paused);
+    bool init(const std::function<void(float)>& callback, float interval, bool paused);
 
     TimerScriptHandler* _timer;
     bool _paused;
@@ -325,51 +328,6 @@ struct SchedulerScriptData
 };
 
 /**
- * For Lua, the TouchesScriptData is used to find the Lua function pointer by the nativeObject, then call the Lua
- * function by push touches data and actionType into the Lua stack as the parameters when the touches event is
- * triggered.
- */
-struct TouchesScriptData
-{
-    /**
-     * The EventTouch::EventCode type.
-     *
-     * @lua NA
-     */
-    EventTouch::EventCode actionType;
-    /**
-     * For Lua, it Used to find the Lua function pointer by the ScriptHandlerMgr.
-     *
-     * @lua NA
-     */
-    void* nativeObject;
-    /**
-     * The vector of Touch.For Lua, it would be convert to the Lua table form to be pushed into the Lua stack.
-     *
-     * @lua NA
-     */
-    const std::vector<Touch*>& touches;
-    /**
-     * event information, it is useless for Lua.
-     *
-     * @lua NA
-     */
-    Event* event;
-
-    /**
-     * Constructor of TouchesScriptData.
-     *
-     * @lua NA
-     */
-    TouchesScriptData(EventTouch::EventCode inActionType,
-                      void* inNativeObject,
-                      const std::vector<Touch*>& inTouches,
-                      Event* evt)
-        : actionType(inActionType), nativeObject(inNativeObject), touches(inTouches), event(evt)
-    {}
-};
-
-/**
  * For Lua, the TouchScriptData is used to find the Lua function pointer by the nativeObject, then call the Lua function
  * by push touch data and actionType converted to string type into the Lua stack as the parameters when the touch event
  * is triggered.
@@ -377,23 +335,17 @@ struct TouchesScriptData
 struct TouchScriptData
 {
     /**
-     * The EventTouch::EventCode type.
+     * The PointerEvent::EventCode type.
      *
      * @lua NA
      */
-    EventTouch::EventCode actionType;
+    InputPhase actionType;
     /**
-     * For Lua, it Used to find the Lua function pointer by the ScriptHandlerMgr.
+     * A scripting backend may resolve the callback through its own callback registry.
      *
      * @lua NA
      */
     void* nativeObject;
-    /**
-     * touch information. it would be in x,y form to push into the Lua stack.
-     *
-     * @lua NA
-     */
-    Touch* touch;
     /**
      * event information,it is useless for Lua.
      *
@@ -406,8 +358,8 @@ struct TouchScriptData
      *
      * @lua NA
      */
-    TouchScriptData(EventTouch::EventCode inActionType, void* inNativeObject, Touch* inTouch, Event* evt)
-        : actionType(inActionType), nativeObject(inNativeObject), touch(inTouch), event(evt)
+    TouchScriptData(InputPhase inActionType, void* inNativeObject, Event* evt)
+        : actionType(inActionType), nativeObject(inNativeObject), event(evt)
     {}
 };
 
@@ -419,13 +371,13 @@ struct TouchScriptData
 struct KeypadScriptData
 {
     /**
-     * The specific type of EventKeyboard::KeyCode
+     * The specific type of KeyboardEvent::KeyCode
      *
      * @lua NA
      */
-    EventKeyboard::KeyCode actionType;
+    KeyboardEvent::KeyCode actionType;
     /**
-     * For Lua, it Used to find the Lua function pointer by the ScriptHandlerMgr.
+     * A scripting backend may resolve the callback through its own callback registry.
      *
      * @lua NA
      */
@@ -436,7 +388,7 @@ struct KeypadScriptData
      *
      * @lua NA
      */
-    KeypadScriptData(EventKeyboard::KeyCode inActionType, void* inNativeObject)
+    KeypadScriptData(KeyboardEvent::KeyCode inActionType, void* inNativeObject)
         : actionType(inActionType), nativeObject(inNativeObject)
     {}
 };
@@ -602,6 +554,13 @@ public:
     virtual void removeScriptObjectByObject(Object* /*obj*/) {}
 
     /**
+     * Invalidate all script-side handles for a native object.  This is the
+     * engine-neutral lifecycle name; removeScriptObjectByObject remains as a
+     * compatibility hook for existing script backends.
+     */
+    virtual void invalidateScriptObject(Object* obj) { removeScriptObjectByObject(obj); }
+
+    /**
      * Remove script function handler, only LuaEngine class need to implement this function.
      * @see removeScriptHandler of LuaEngine.
      * @lua NA
@@ -759,22 +718,15 @@ public:
      * @lua NA
      */
     static ScriptEngineManager* getInstance();
+
+    /** Returns the active script engine without constructing the manager. */
+    static ScriptEngineProtocol* getScriptEngineIfExists();
     /**
      * Destroy the singleton about ScriptEngineManager.
      *
      * @lua NA
      */
     static void destroyInstance();
-
-    /**
-     * Call the Lua function when the event of node is triggered.
-     *
-     * @param node the nativeobject triggers the event.
-     * @param action the specific type.
-     *
-     * @lua NA
-     */
-    static void sendNodeEventToLua(Node* node, int action);
 
     /**
      * Send a event to lua script

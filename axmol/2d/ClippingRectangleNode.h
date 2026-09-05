@@ -27,7 +27,7 @@
  */
 #pragma once
 
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/renderer/CallbackCommand.h"
 
 namespace ax
@@ -82,7 +82,7 @@ public:
     void setClippingEnabled(bool enabled) { _clippingEnabled = enabled; }
 
     // virtual void draw(Renderer* renderer, const Mat4 &transform, uint32_t flags) override;
-    void visit(Renderer* renderer, const Mat4& parentTransform, uint32_t parentFlags) override;
+    void visit(const SceneRenderState& state, const Mat4& parentTransform, uint32_t parentFlags) override;
 
 protected:
     ClippingRectangleNode() = default;

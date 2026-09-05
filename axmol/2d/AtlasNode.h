@@ -28,7 +28,7 @@ THE SOFTWARE.
 ****************************************************************************/
 #pragma once
 
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/base/Protocols.h"
 #include "axmol/base/Types.h"
 #include "axmol/renderer/QuadCommand.h"
@@ -67,7 +67,7 @@ public:
     virtual void updateAtlasValues();
 
     // Overrides
-    void draw(Renderer* renderer, const Mat4& transform, uint32_t flags) override;
+    void draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags) override;
     Texture2D* getTexture() const override;
     void setTexture(Texture2D* texture) override;
     bool isOpacityModifyRGB() const override;

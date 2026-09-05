@@ -43,6 +43,7 @@ class VertexBuffer;
 class Texture2D;
 class ParticleSystem3D;
 class Renderer;
+struct SceneRenderState;
 
 class PUBillboardChain
 {
@@ -56,7 +57,7 @@ public:
     public:
         Element();
 
-        Element(const Vec3& position, float width, float texCoord, const Color& colour, const Quaternion& orientation);
+        Element(const Vec3& position, float width, float texCoord, const Color& colour, const Quat& orientation);
 
         Vec3 position;
         float width;
@@ -65,7 +66,7 @@ public:
         Color color;
 
         // Only used when mFaceCamera == false
-        Quaternion orientation;
+        Quat orientation;
     };
     typedef std::vector<Element> ElementList;
 
@@ -218,13 +219,13 @@ public:
     matrix, the segment corresponding to that point will be facing towards UNIT_Z
     This vector is internally normalized.
     */
-    void setFaceCamera(bool faceCamera, const Vec3& normalVector = Vec3::UNIT_X);
+    void setFaceCamera(bool faceCamera, const Vec3& normalVector = Vec3::xAxis);
 
     void setDepthTest(bool isDepthTest);
     void setDepthWrite(bool isDepthWrite);
     void setBlendFunc(const BlendFunc& blendFunc);
 
-    void render(Renderer* renderer, const Mat4& transform, ParticleSystem3D* particleSystem);
+    void render(const SceneRenderState& state, const Mat4& transform, ParticleSystem3D* particleSystem);
 
     // Overridden members follow
     // void _updateRenderQueue(RenderQueue*);
@@ -241,7 +242,7 @@ protected:
     // Setup buffers
     virtual void setupBuffers();
     /// Update the contents of the vertex buffer
-    virtual void updateVertexBuffer(const Mat4& camMat);
+    virtual void updateVertexBuffer(const Vec3& eyePos);
     /// Update the contents of the index buffer
     virtual void updateIndexBuffer();
 

@@ -28,15 +28,15 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
-#include <cstdint>
+#include <stdint.h>
 #include <functional>
 #include <span>
 #include "axmol/platform/PlatformMacros.h"
 #include "axmol/base/Object.h"
-#include "axmol/base/EventListenerCustom.h"
+#include "axmol/base/CustomEventListener.h"
 #include "axmol/rhi/RHITypes.h"
 #include "axmol/rhi/Program.h"
-#include "axmol/renderer/VertexLayoutManager.h"
+// #include "axmol/renderer/VertexLayoutManager.h"
 #include "axmol/tlx/byte_buffer.hpp"
 
 namespace ax::rhi
@@ -129,7 +129,7 @@ public:
      * @param data Specifies the new values to be used for the specified uniform variable.
      * @param size Specifies the uniform data size.
      */
-    void setUniform(const rhi::UniformLocation& uniformLocation, const void* data, std::size_t size);
+    void setUniform(const rhi::UniformLocation& uniformLocation, const void* data, size_t size);
 
     /**
      * Get uniform location in given uniform name.
@@ -149,29 +149,12 @@ public:
 
     void getUniformLocations(std::string_view name, UniformLocationVector& outLocations) const;
 
-    /**
-     * Get an attribute location by the actual attribute name.
-     * @param name Specifies the attribute name.
-     * @return Attribute location.
-     * @see `int getAttributeLocation(std::string_view name) const`
-     */
-    inline const VertexInputDesc* getVertexInputDesc(std::string_view name) const
+    inline const VertexInputDesc* getVertexInputDesc(const VertexSemantic& semantic) const
     {
-        return _program->getVertexInputDesc(name);
+        return _program->getVertexInputDesc(semantic);
     }
 
-    /**
-     * Get an attribute location by the engine built-in attribute name.
-     * @param name Specifies the built-in attribute name.
-     * @return Attribute location.
-     * @see `int getAttributeLocation(std::string_view name) const`
-     */
-    inline const VertexInputDesc* getVertexInputDesc(VertexInputKind name) const
-    {
-        return _program->getVertexInputDesc(name);
-    }
-
-    const tlx::string_map<VertexInputDesc>& getActiveVertexInputs() const { return _program->getActiveVertexInputs(); }
+    const Program::VertexInputMap& getActiveVertexInputs() const { return _program->getActiveVertexInputs(); }
 
     const std::vector<UniformBlockInfo>& getActiveUniformBlockInfos() const
     {
@@ -340,7 +323,7 @@ protected:
     uint64_t _batchId = -1;
 
 #if AX_ENABLE_CONTEXT_LOSS_RECOVERY
-    EventListenerCustom* _backToForegroundListener{nullptr};
+    CustomEventListener* _backToForegroundListener{nullptr};
 #endif
 
     bool _isBatchable = false;
@@ -349,3 +332,8 @@ protected:
 // end of _rhi group
 /// @}
 }  // namespace ax::rhi
+
+namespace ax
+{
+using ProgramState = rhi::ProgramState;
+}  // namespace ax

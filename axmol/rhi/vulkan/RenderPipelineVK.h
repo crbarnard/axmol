@@ -27,6 +27,7 @@
 #include "axmol/tlx/hlookup.hpp"
 #include <glad/vulkan.h>
 #include <unordered_map>
+#include "axmol/tlx/vector.hpp"
 #include "yasio/object_pool.hpp"
 
 namespace ax::rhi::vk
@@ -34,11 +35,12 @@ namespace ax::rhi::vk
 class DepthStencilStateImpl;
 class VertexLayoutImpl;
 class ProgramImpl;
-class DriverImpl;
+class GraphicsDeviceImpl;
 
-static constexpr int MAX_DESCRIPTOR_SETS = 2;
-static constexpr int SET_INDEX_UBO       = 0;
-static constexpr int SET_INDEX_SAMPLER   = 1;
+static constexpr int MAX_DESCRIPTOR_SETS      = 3;
+static constexpr int SET_INDEX_UBO            = 0;
+static constexpr int SET_INDEX_RESOURCE       = 1;  // image + built-in preset samplers
+static constexpr int SET_INDEX_CUSTOM_SAMPLER = 2;  // program-local custom samplers
 
 static constexpr uint32_t DESCRIPTOR_POOL_MAX_SETS           = 128;
 static constexpr uint32_t DESCRIPTOR_POOL_UNIFORM_MULTIPLIER = 2;
@@ -61,9 +63,12 @@ struct DescriptorState
 {
     DescriptorPool* pool{nullptr};
     VkDescriptorSetArray sets{};  // Allocated VkDescriptorSets
-    uint64_t progId{0};           // progId associated with this descriptor set
+    uint8_t descriptorSetCount{0};
+    uint64_t progId{0};  // progId associated with this descriptor set
     uint16_t uniformDescriptorCount{0};
+    uint16_t imageDescriptorCount{0};
     uint16_t samplerDescriptorCount{0};
+    uint16_t combinedDescriptorCount{0};
 };
 
 using DescriptorList = tlx::pod_vector<DescriptorState*>;
@@ -74,7 +79,9 @@ struct PipelineLayoutState
     VkDescriptorSetLayoutArray descriptorSetLayouts{VK_NULL_HANDLE};
 
     uint32_t descriptorSetLayoutCount{0};
+    uint32_t imageDescriptorCount{0};
     uint32_t samplerDescriptorCount{0};
+    uint32_t combinedDescriptorCount{0};
     uint32_t uniformDescriptorCount{0};
 
     DescriptorList descriptorFreeList;  // recycled descriptor sets
@@ -91,7 +98,9 @@ public:
     {
         return _freeSetCount >= layoutState->descriptorSetLayoutCount &&
                _freeUniformDescriptorCount >= layoutState->uniformDescriptorCount &&
-               _freeSamplerDescriptorCount >= layoutState->samplerDescriptorCount;
+               _freeImageDescriptorCount >= layoutState->imageDescriptorCount &&
+               _freeSamplerDescriptorCount >= layoutState->samplerDescriptorCount &&
+               _freeCombinedDescriptorCount >= layoutState->combinedDescriptorCount;
     }
     int available() const { return _freeSetCount > 0; }
     void allocateDescriptorSets(const PipelineLayoutState* layoutState, DescriptorState* descriptorState);
@@ -111,6 +120,10 @@ protected:
 
     int _maxSamplerDescriptorCount{0};
     int _freeSamplerDescriptorCount{0};
+    int _maxImageDescriptorCount{0};
+    int _freeImageDescriptorCount{0};
+    int _maxCombinedDescriptorCount{0};
+    int _freeCombinedDescriptorCount{0};
 };
 
 class DescriptorAllocator
@@ -147,7 +160,7 @@ protected:
 class RenderPipelineImpl : public RenderPipeline
 {
 public:
-    explicit RenderPipelineImpl(DriverImpl* driver);
+    explicit RenderPipelineImpl(GraphicsDeviceImpl* driver);
     ~RenderPipelineImpl();
 
     void prepareUpdate(DepthStencilStateImpl* ds) { _dsState = ds; }
@@ -164,9 +177,9 @@ public:
     void removeCachedObjects(Program* key);
 
 private:
-    void initializePipelineDefaults(DriverImpl* driver);
+    void initializePipelineDefaults(GraphicsDeviceImpl* driver);
 
-    void updateBlendState(const BlendDesc& blendDesc);
+    void updateBlendState(const BlendDesc& blendDesc, uint32_t colorAttachmentCount);
     void updatePipelineLayoutState(ProgramImpl* program);
     void updateGraphicsPipeline(ProgramImpl* program,
                                 const PipelineDesc& desc,
@@ -177,7 +190,7 @@ private:
     void freeDescriptorStates(DescriptorAllocator& allocator, DescriptorList& descriptorStates, bool needResortPools);
 
 private:
-    DriverImpl* _driver{nullptr};
+    GraphicsDeviceImpl* _driver{nullptr};
     VkDevice _device{VK_NULL_HANDLE};
 
     const DepthStencilStateImpl* _dsState{nullptr};
@@ -191,7 +204,7 @@ private:
     VkPipelineDynamicStateCreateInfo _dynState{};
 #pragma endregion
 
-    VkPipelineColorBlendAttachmentState _activeAttachment{};
+    tlx::pod_vector<VkPipelineColorBlendAttachmentState> _activeBlendAttachmentStates{};
     VkPipelineColorBlendStateCreateInfo _activeBlendState{};
 
     uint64_t _activeProgId{0};

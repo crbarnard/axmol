@@ -31,7 +31,7 @@
 #include "axmol/math/Vec3.h"
 #include "axmol/math/Vec4.h"
 #include "axmol/math/Mat4.h"
-#include "axmol/math/Quaternion.h"
+#include "axmol/math/Quat.h"
 #include "axmol/base/text_utils.h"
 #include "axmol/base/Data.h"
 #include "axmol/tlx/charconv.hpp"
@@ -888,7 +888,7 @@ bool Properties::getVec4(std::string_view name, Vec4* out) const
     return parseVec4(getString(name), out);
 }
 
-bool Properties::getQuaternionFromAxisAngle(std::string_view name, Quaternion* out) const
+bool Properties::getQuaternionFromAxisAngle(std::string_view name, Quat* out) const
 {
     return parseAxisAngle(getString(name), out);
 }
@@ -1172,7 +1172,7 @@ bool Properties::parseVec4(std::string_view str, Vec4* out)
     return false;
 }
 
-bool Properties::parseAxisAngle(std::string_view str, Quaternion* out)
+bool Properties::parseAxisAngle(std::string_view str, Quat* out)
 {
     if (!str.empty())
     {
@@ -1198,7 +1198,7 @@ bool Properties::parseColor(std::string_view str, Color* out)
 {
     if (!str.empty())
     {
-        if (str.length() == 9 && str[0] == '#')
+        if (str.length() == 9 && str[0] == '#')  // '#RRGGBBAA'
         {
             // Read the string into an int as hex.
             unsigned int color;
@@ -1206,7 +1206,10 @@ bool Properties::parseColor(std::string_view str, Color* out)
             if (ec == std::errc{})
             {
                 if (out)
-                    out->set(Color::fromHex(color));
+                {
+                    const uint32_t argb = (color >> 8) | (color << 24);
+                    out->set(Color::fromHex(argb));
+                }
                 return true;
             }
             else

@@ -33,7 +33,7 @@
 namespace ax
 {
 
-class AX_EX_DLL PUVortexAffector : public PUAffector
+class AX_EXT_API PUVortexAffector : public PUAffector
 {
 public:
     // Constants
@@ -72,7 +72,7 @@ protected:
 
 protected:
     Vec3 _rotationVector;
-    Quaternion _rotation;
+    Quat _rotation;
     PUDynamicAttribute* _dynRotationSpeed;
     PUDynamicAttributeHelper _dynamicAttributeHelper;
 };

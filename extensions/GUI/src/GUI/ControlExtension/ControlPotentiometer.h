@@ -42,7 +42,7 @@ NS_AX_EXT_BEGIN
  */
 
 /** @class ControlPotentiometer Potentiometer control for Cocos2D. */
-class AX_EX_DLL ControlPotentiometer : public Control
+class AX_EXT_API ControlPotentiometer : public Control
 {
 public:
     /**
@@ -78,11 +78,11 @@ public:
     float getMaximumValue();
 
     // Overrides
-    bool isTouchInside(Touch* touch) override;
+    bool isTouchInside(PointerEvent* event) override;
     void setEnabled(bool enabled) override;
-    bool onTouchBegan(Touch* pTouch, Event* pEvent) override;
-    void onTouchMoved(Touch* pTouch, Event* pEvent) override;
-    void onTouchEnded(Touch* pTouch, Event* pEvent) override;
+    bool onPointerDown(PointerEvent* event) override;
+    void onPointerMove(PointerEvent* event) override;
+    void onPointerUp(PointerEvent* event) override;
 
     /** Factorize the event dispatch into these methods. */
     void potentiometerBegan(Vec2 location);

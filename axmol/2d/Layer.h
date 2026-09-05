@@ -26,7 +26,7 @@ THE SOFTWARE.
 ****************************************************************************/
 #pragma once
 
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/2d/Sprite.h"
 #include "axmol/base/Protocols.h"
 #include "axmol/renderer/CustomCommand.h"
@@ -242,8 +242,8 @@ public:
 protected:
     void updateColor() override;
 
-    Color32 _startColor           = Color32::BLACK;
-    Color32 _endColor             = Color32::BLACK;
+    Color32 _startColor           = Color32::black;
+    Color32 _endColor             = Color32::black;
     Vec2 _alongVector             = {0.0f, -1.0f};
     bool _compressedInterpolation = true;
 };
@@ -273,7 +273,7 @@ public:
     //
     // overrides
     //
-    void draw(Renderer* renderer, const Mat4& transform, uint32_t flags) override;
+    void draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags) override;
     void setContentSize(const Vec2& size) override;
 
     void setStartOpacity(uint8_t opacity);
@@ -310,11 +310,11 @@ public:
                        float expand);
 
 private:
-    Color32 _startColor   = Color32::BLACK;
-    Color _startColorRend = Color::BLACK;  // start color used in shader
+    Color32 _startColor   = Color32::black;
+    Color _startColorRend = Color::black;  // start color used in shader
 
-    Color32 _endColor   = Color32::BLACK;
-    Color _endColorRend = Color::BLACK;  // end color used in shader
+    Color32 _endColor   = Color32::black;
+    Color _endColorRend = Color::black;  // end color used in shader
 
     Vec3 _vertices[4];
     Vec2 _center;

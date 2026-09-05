@@ -24,7 +24,7 @@
 #pragma once
 
 #include "axmol/rhi/Texture.h"
-#include "axmol/base/EventListenerCustom.h"
+#include "axmol/base/CustomEventListener.h"
 #include <glad/vulkan.h>
 #include <vk_mem_alloc.h>
 
@@ -38,7 +38,8 @@ namespace ax::rhi::vk
  * @{
  */
 
-class DriverImpl;
+class GraphicsDeviceImpl;
+class RenderTargetImpl;
 class TextureImpl;
 
 /**
@@ -55,7 +56,7 @@ struct TextureHandle
     explicit operator bool() const { return image != VK_NULL_HANDLE; }
 
 private:
-    void destroy(DriverImpl* driver, uint64_t fenceValue);
+    void destroy(GraphicsDeviceImpl* driver, uint64_t fenceValue);
 
     TextureHandle detach()
     {
@@ -108,12 +109,13 @@ private:
  */
 class TextureImpl : public rhi::Texture
 {
+    friend class RenderTargetImpl;
+
 public:
     /**
      * @param desc Specifies the texture description.
      */
-    TextureImpl(DriverImpl*, const TextureDesc& desc);
-    TextureImpl(DriverImpl*, VkImage existingImage, VkImageView existingImageView);
+    TextureImpl(GraphicsDeviceImpl*, const TextureDesc& desc);
     ~TextureImpl();
 
     // only operate level=0, layer=0
@@ -126,12 +128,8 @@ public:
     void setKnownLayout(VkImageLayout layout);
 
     void updateData(const void* data, int width, int height, int level, int layerIndex = 0) override;
-    void updateCompressedData(const void* data,
-                              int width,
-                              int height,
-                              std::size_t dataSize,
-                              int level,
-                              int layerIndex = 0) override;
+    void updateCompressedData(const void* data, int width, int height, size_t dataSize, int level, int layerIndex = 0)
+        override;
 
     void updateSubData(int xoffset, int yoffset, int width, int height, int level, const void* data, int layerIndex = 0)
         override;
@@ -140,7 +138,7 @@ public:
                                  int yoffset,
                                  int width,
                                  int height,
-                                 std::size_t dataSize,
+                                 size_t dataSize,
                                  int level,
                                  const void* data,
                                  int layerIndex = 0) override;
@@ -153,14 +151,34 @@ public:
     const TextureHandle& internalHandle() const { return _nativeTexture; }
     VkSampler getSampler() const { return _sampler; }
     const TextureDesc& getDesc() const { return _desc; }
+    VkImageUsageFlags getUsageFlags() const { return _vkUsageFlags; }
 
     void setLastFenceValue(uint64_t fenceValue) { _lastFenceValue = fenceValue; }
 
-private:
+    bool canUseShaderReadOnlyLayout() const
+    {
+        return (_vkUsageFlags & (VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT)) != 0;
+    }
+
+    VkImageLayout getRenderTargetFinalLayout() const { return _rtFinalLayout; }
+
+    /**
+     * Wraps an existing VkImage (e.g. from OpenXR swapchain).
+     */
+    TextureImpl(GraphicsDeviceImpl*, VkImage existingImage, VkImageView existingImageView, VkImageUsageFlags usage);
+    TextureImpl(GraphicsDeviceImpl*,
+                VkImage existingImage,
+                VkImageView existingImageView,
+                VkImageUsageFlags usage,
+                const TextureDesc& desc,
+                VkImageLayout initialLayout,
+                VkImageLayout rtFinalLayout);
+
+protected:
     void ensureNativeTexture();
     void generateMipmaps(VkCommandBuffer cmd);
 
-    DriverImpl* _driver{nullptr};  // weak pointer
+    GraphicsDeviceImpl* _driver{nullptr};  // weak pointer
     ImageLayoutTracker _layoutTracker;
     TextureHandle _nativeTexture{};
     VkSampler _sampler{VK_NULL_HANDLE};
@@ -168,7 +186,10 @@ private:
 
     uint64_t _lastFenceValue{0};
 
+    VkImageUsageFlags _vkUsageFlags{0};
+    VkImageLayout _rtFinalLayout{VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
     bool _ownResources{false};
+    bool _ownImageView{false};
 };
 
 /** @} */

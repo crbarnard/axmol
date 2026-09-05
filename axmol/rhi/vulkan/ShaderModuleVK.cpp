@@ -22,9 +22,9 @@
  THE SOFTWARE.
  ****************************************************************************/
 #include "axmol/rhi/vulkan/ShaderModuleVK.h"
-#include "axmol/rhi/vulkan/DriverVK.h"
+#include "axmol/rhi/vulkan/GraphicsDeviceVK.h"
 #include "axmol/base/Logging.h"
-#include <cassert>
+#include <assert.h>
 #include <algorithm>
 
 namespace ax::rhi::vk
@@ -42,7 +42,7 @@ ShaderModuleImpl::~ShaderModuleImpl()
         // Device should be accessible from a driver; here we assume destruction is handled externally.
         // If needed, store VkDevice in this class like other implementations.
         // Intentionally left minimal: the lifetime is managed by the owning renderer/driver.
-        auto device = static_cast<DriverImpl*>(axdrv)->getDevice();
+        auto device = static_cast<GraphicsDeviceImpl*>(axdrv)->getDevice();
         vkDestroyShaderModule(device, _shader, nullptr);
     }
 }
@@ -62,11 +62,14 @@ void ShaderModuleImpl::compileShader(VkDevice device)
     smci.codeSize = _codeSpan.size();
     smci.pCode    = reinterpret_cast<const uint32_t*>(_codeSpan.data());
 
-    VkResult vr = vkCreateShaderModule(device, &smci, nullptr, &_shader);
-    if (vr != VK_SUCCESS || _shader == VK_NULL_HANDLE)
+    _precompiled = true;
+
+    VkResult ret = vkCreateShaderModule(device, &smci, nullptr, &_shader);
+
+    _compiled = ret == VK_SUCCESS && _shader != VK_NULL_HANDLE;
+    if (!_compiled)
     {
-        AXLOGE("axmol: Failed to create VkShaderModule (VkResult={}).", (int)vr);
-        assert(false);
+        AXLOGE("axmol: Failed to create VkShaderModule (VkResult={}).", (int)ret);
     }
 }
 

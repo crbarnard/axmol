@@ -24,7 +24,7 @@
 #pragma once
 
 #include <vector>
-#include <cassert>
+#include <assert.h>
 #include <d3d12.h>
 
 #include "axmol/rhi/DXUtils.h"
@@ -37,8 +37,8 @@ namespace ax::rhi::d3d12
 
 using Microsoft::WRL::ComPtr;
 
-class DriverImpl;
-class RenderContextImpl;
+class GraphicsDeviceImpl;
+class GraphicsContextImpl;
 
 /**
  * @addtogroup _d3d12
@@ -57,14 +57,14 @@ class RenderContextImpl;
  */
 class BufferImpl final : public Buffer
 {
-    friend class RenderContextImpl;
+    friend class GraphicsContextImpl;
 
 public:
-    BufferImpl(DriverImpl* driver, std::size_t size, BufferType type, BufferUsage usage, const void* initial);
+    BufferImpl(GraphicsDeviceImpl* driver, size_t size, BufferType type, BufferUsage usage, const void* initial);
     ~BufferImpl();
 
-    void updateData(const void* data, std::size_t size) override;
-    void updateSubData(const void* data, std::size_t offset, std::size_t size) override;
+    void updateData(const void* data, size_t size) override;
+    void updateSubData(const void* data, size_t offset, size_t size) override;
     void usingDefaultStoredData(bool needDefaultStoredData) override;
 
     ID3D12Resource* internalResource() const noexcept { return _resource.Get(); }
@@ -73,18 +73,18 @@ public:
 
 private:
     void createNativeBuffer(const void* initial);
-    void copyFromUploadBuffer(const void* data, std::size_t offset, std::size_t size);
-    static std::size_t alignTo(std::size_t value, std::size_t alignment);
+    void copyFromUploadBuffer(const void* data, size_t offset, size_t size);
+    static size_t alignTo(size_t value, size_t alignment);
 
     // For dynamic (UPLOAD heap) buffers we allocate per-frame ComPtr<ID3D12Resource>
-    // and lazily switch to the one matching the current frame index retrieved from DriverImpl.
+    // and lazily switch to the one matching the current frame index retrieved from GraphicsDeviceImpl.
     void updateIndex();  // lazy switch to current frame backing
 
 private:
     tlx::byte_buffer _defaultData;
     bool _needDefaultStoredData = false;
 
-    DriverImpl* _driver{nullptr};
+    GraphicsDeviceImpl* _driver{nullptr};
 
     ComPtr<ID3D12Resource> _resource;                       // main GPU buffer for static/default case or convenience
     std::vector<ComPtr<ID3D12Resource>> _dynamicResources;  // per-frame upload resources for DYNAMIC

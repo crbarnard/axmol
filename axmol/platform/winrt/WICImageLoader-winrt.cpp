@@ -30,7 +30,7 @@ obtained from https://directxtk.codeplex.com
 ****************************************************************************/
 #include "axmol/platform/winrt/WICImageLoader-winrt.h"
 #include "axmol/platform/winrt/WinRTUtils.h"
-#include "axmol/platform/win32/ComPtr.h"
+#include "axmol/platform/msw/ComPtr.h"
 #include "ntcvt/ntcvt.hpp"
 
 namespace ax
@@ -541,24 +541,16 @@ bool WICImageLoader::encodeImageData(std::string_view path,
 
 IWICImagingFactory* WICImageLoader::getWICFactory()
 {
-    if (NULL == _wicFactory)
+    if (!_wicFactory)
     {
-        HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
-
-        if (SUCCEEDED(hr))
-        {
-            hr = CoCreateInstance(CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER, IID_IWICImagingFactory,
-                                  (LPVOID*)&_wicFactory);
-        }
-        else
-        {
-            AXLOGE("CoInitializeEx fail:{}", hr);
-            assert(false);
-        }
-
+        auto hr = CoCreateInstance(CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER, IID_IWICImagingFactory,
+                                   (LPVOID*)&_wicFactory);
         if (FAILED(hr))
         {
             SafeRelease(_wicFactory);
+
+            AXLOGE("Create WICFactory fail:0x{:08X}", static_cast<UINT>(hr));
+            assert(false);
         }
     }
 

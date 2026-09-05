@@ -28,6 +28,8 @@ THE SOFTWARE.
 ****************************************************************************/
 
 #include "axmol/2d/Transition.h"
+#include "axmol/renderer/Renderer.h"
+#include "axmol/renderer/RenderTexturePass.h"
 #include "axmol/2d/ActionInterval.h"
 #include "axmol/2d/ActionInstant.h"
 #include "axmol/2d/ActionEase.h"
@@ -35,10 +37,13 @@ THE SOFTWARE.
 #include "axmol/2d/ActionTiledGrid.h"
 #include "axmol/2d/ActionGrid.h"
 #include "axmol/2d/Layer.h"
-#include "axmol/2d/RenderTexture.h"
+#include "axmol/renderer/RenderTexture.h"
 #include "axmol/2d/NodeGrid.h"
 #include "axmol/base/Director.h"
 #include "axmol/base/EventDispatcher.h"
+#include "axmol/platform/RenderView.h"
+#include "axmol/scene/Camera.h"
+#include "axmol/scene/Scene.h"
 
 namespace ax
 {
@@ -112,19 +117,19 @@ void TransitionScene::sceneOrder()
     _isInSceneOnTop = true;
 }
 
-void TransitionScene::draw(Renderer* renderer, const Mat4& transform, uint32_t flags)
+void TransitionScene::draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags)
 {
-    Scene::draw(renderer, transform, flags);
+    Scene::draw(state, transform, flags);
 
     if (_isInSceneOnTop)
     {
-        _outScene->visit(renderer, transform, flags);
-        _inScene->visit(renderer, transform, flags);
+        _outScene->visit(state, transform, flags);
+        _inScene->visit(state, transform, flags);
     }
     else
     {
-        _inScene->visit(renderer, transform, flags);
-        _outScene->visit(renderer, transform, flags);
+        _inScene->visit(state, transform, flags);
+        _outScene->visit(state, transform, flags);
     }
 }
 
@@ -1043,7 +1048,7 @@ TransitionFade* TransitionFade::create(float duration, Scene* scene, const Color
 
 TransitionFade* TransitionFade::create(float duration, Scene* scene)
 {
-    return TransitionFade::create(duration, scene, Color32::BLACK);
+    return TransitionFade::create(duration, scene, Color32::black);
 }
 
 bool TransitionFade::initWithDuration(float duration, Scene* scene, const Color32& color)
@@ -1060,7 +1065,7 @@ bool TransitionFade::initWithDuration(float duration, Scene* scene, const Color3
 
 bool TransitionFade::initWithDuration(float t, Scene* scene)
 {
-    this->initWithDuration(t, scene, Color32::BLACK);
+    this->initWithDuration(t, scene, Color32::black);
     return true;
 }
 
@@ -1106,7 +1111,7 @@ TransitionCrossFade* TransitionCrossFade::create(float t, Scene* scene)
     return nullptr;
 }
 
-void TransitionCrossFade::draw(Renderer* /*renderer*/, const Mat4& /*transform*/, uint32_t /*flags*/)
+void TransitionCrossFade::draw(const SceneRenderState& /*state*/, const Mat4& /*transform*/, uint32_t /*flags*/)
 {
     // override draw since both scenes (textures) are rendered in 1 scene
 }
@@ -1121,48 +1126,55 @@ void TransitionCrossFade::onEnter()
     Vec2 size         = _director->getCanvasSize();
     LayerColor* layer = LayerColor::create(color);
 
+    auto camera = Camera::create(CameraMode::Ortho);
+
     // create the first render texture for inScene
     RenderTexture* inTexture =
-        RenderTexture::create((int)size.width, (int)size.height, rhi::PixelFormat::RGBA8, PixelFormat::D24S8, false);
+        RenderTexture::create(_director->canvasToPixels(size), rhi::PixelFormat::RGBA8, PixelFormat::D24S8);
 
-    if (nullptr == inTexture)
-    {
-        return;
-    }
-
-    inTexture->setPosition(size.width / 2, size.height / 2);
-    inTexture->setAnchorPoint(Vec2(0.5f, 0.5f));
+    RefPtr<RenderTexturePass> pass{RenderTexturePass::obtain(inTexture), tlx::adopt_object};
 
     // render inScene to its texturebuffer
-    inTexture->begin();
-    _inScene->visit();
-    inTexture->end();
+    pass->begin(camera);
+    SceneRenderState renderState(_director->getRenderer(), camera);
+    _inScene->visit(renderState, _inScene->getNodeToParentTransform(), 0);
+    pass->end();
+
+    _director->getRenderer()->render();
+
+    Sprite* inSprite = Sprite::createWithTexture(inTexture);
+    inSprite->setPosition(size.width / 2, size.height / 2);
+    inSprite->setAnchorPoint(Vec2(0.5f, 0.5f));
 
     // create the second render texture for outScene
     RenderTexture* outTexture =
-        RenderTexture::create((int)size.width, (int)size.height, rhi::PixelFormat::RGBA8, PixelFormat::D24S8, false);
-
-    outTexture->setPosition(size.width / 2, size.height / 2);
-    outTexture->setAnchorPoint(Vec2(0.5f, 0.5f));
+        RenderTexture::create(_director->canvasToPixels(size), rhi::PixelFormat::RGBA8, PixelFormat::D24S8);
 
     // render outScene to its texturebuffer
-    outTexture->begin();
-    _outScene->visit();
-    outTexture->end();
+    pass->setTarget(outTexture);
 
-    // create blend functions
+    pass->begin(camera);
+    renderState = SceneRenderState(_director->getRenderer(), camera);
+    _outScene->visit(renderState, _outScene->getNodeToParentTransform(), 0);
+    pass->end();
+
+    _director->getRenderer()->render();
+
+    Sprite* outSprite = Sprite::createWithTexture(outTexture);
+    outSprite->setPosition(size.width / 2, size.height / 2);
+    outSprite->setAnchorPoint(Vec2(0.5f, 0.5f));
 
     // set blendfunctions
-    inTexture->getSprite()->setBlendFunc(BlendFunc::DISABLE);
-    outTexture->getSprite()->setBlendFunc(BlendFunc::ALPHA_PREMULTIPLIED);
+    inSprite->setBlendFunc(BlendFunc::DISABLE);
+    outSprite->setBlendFunc(BlendFunc::ALPHA_PREMULTIPLIED);
 
-    // add render textures to the layer
-    layer->addChild(inTexture);
-    layer->addChild(outTexture);
+    // add sprites to the layer
+    layer->addChild(inSprite);
+    layer->addChild(outSprite);
 
     // initial opacity:
-    inTexture->getSprite()->setOpacity(255);
-    outTexture->getSprite()->setOpacity(255);
+    inSprite->setOpacity(255);
+    outSprite->setOpacity(255);
 
     // create the blend action
     Action* layerAction = Sequence::create(FadeTo::create(_duration, 0),
@@ -1170,9 +1182,9 @@ void TransitionCrossFade::onEnter()
                                            CallFunc::create(AX_CALLBACK_0(TransitionScene::finish, this)), nullptr);
 
     // run the blend action
-    outTexture->getSprite()->runAction(layerAction);
+    outSprite->runAction(layerAction);
 
-    // add the layer (which contains our two rendertextures) to the scene
+    // add the layer (which contains our two sprites) to the scene
     addChild(layer, 2, kSceneFade);
 }
 
@@ -1240,19 +1252,19 @@ void TransitionTurnOffTiles::onExit()
     TransitionScene::onExit();
 }
 
-void TransitionTurnOffTiles::draw(Renderer* renderer, const Mat4& transform, uint32_t flags)
+void TransitionTurnOffTiles::draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags)
 {
-    Scene::draw(renderer, transform, flags);
+    Scene::draw(state, transform, flags);
 
     if (_isInSceneOnTop)
     {
-        _outSceneProxy->visit(renderer, transform, flags);
-        _inScene->visit(renderer, transform, flags);
+        _outSceneProxy->visit(state, transform, flags);
+        _inScene->visit(state, transform, flags);
     }
     else
     {
-        _inScene->visit(renderer, transform, flags);
-        _outSceneProxy->visit(renderer, transform, flags);
+        _inScene->visit(state, transform, flags);
+        _outSceneProxy->visit(state, transform, flags);
     }
 }
 
@@ -1308,10 +1320,10 @@ void TransitionSplitCols::switchTargetToInscene()
     _gridProxy->setTarget(_inScene);
 }
 
-void TransitionSplitCols::draw(Renderer* renderer, const Mat4& transform, uint32_t flags)
+void TransitionSplitCols::draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags)
 {
-    Scene::draw(renderer, transform, flags);
-    _gridProxy->visit(renderer, transform, flags);
+    Scene::draw(state, transform, flags);
+    _gridProxy->visit(state, transform, flags);
 }
 
 void TransitionSplitCols::onExit()
@@ -1390,6 +1402,7 @@ void TransitionFadeTR::onEnter()
     TransitionScene::onEnter();
 
     _outSceneProxy->setTarget(_outScene);
+    _outSceneProxy->setProjectGridBlitToVisitingCamera(_director->getRenderView()->isVRActive());
     _outSceneProxy->onEnter();
 
     Vec2 s       = _director->getCanvasSize();
@@ -1411,19 +1424,19 @@ void TransitionFadeTR::onExit()
     TransitionScene::onExit();
 }
 
-void TransitionFadeTR::draw(Renderer* renderer, const Mat4& transform, uint32_t flags)
+void TransitionFadeTR::draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags)
 {
-    Scene::draw(renderer, transform, flags);
+    Scene::draw(state, transform, flags);
 
     if (_isInSceneOnTop)
     {
-        _outSceneProxy->visit(renderer, transform, flags);
-        _inScene->visit(renderer, transform, flags);
+        _outSceneProxy->visit(state, transform, flags);
+        _inScene->visit(state, transform, flags);
     }
     else
     {
-        _inScene->visit(renderer, transform, flags);
-        _outSceneProxy->visit(renderer, transform, flags);
+        _inScene->visit(state, transform, flags);
+        _outSceneProxy->visit(state, transform, flags);
     }
 }
 

@@ -29,25 +29,70 @@ THE SOFTWARE.
 using namespace ax;
 #include <stdlib.h>
 #include <float.h>
+#include <limits>
 #include <set>
 #include <stddef.h>  // offsetof
 #include "axmol/renderer/Renderer.h"
 #include "axmol/renderer/Shaders.h"
-#include "axmol/rhi/DriverContext.h"
+#include "axmol/rhi/GraphicsCore.h"
 #include "axmol/rhi/Program.h"
 #include "axmol/rhi/Buffer.h"
 #include "axmol/base/Director.h"
 #include "axmol/base/Types.h"
+#include "axmol/base/PointerEvent.h"
 #include "axmol/tlx/vector.hpp"
 #include "axmol/tlx/utility.hpp"
 #include "axmol/base/EventType.h"
-#include "axmol/2d/Camera.h"
+#include "axmol/scene/Camera.h"
 #include "axmol/platform/Image.h"
-#include "axmol/3d/shaderinfos.h"
+#include "axmol/3d/MeshVertexAttribute.h"
 #include "axmol/base/Utils.h"
 
 namespace ax
 {
+namespace
+{
+void buildViewProjectionPlanes(const Mat4& viewProjection, Plane planes[6])
+{
+    planes[0].initPlane(-Vec3(viewProjection.m[3] + viewProjection.m[0], viewProjection.m[7] + viewProjection.m[4],
+                              viewProjection.m[11] + viewProjection.m[8]),
+                        viewProjection.m[15] + viewProjection.m[12]);
+    planes[1].initPlane(-Vec3(viewProjection.m[3] - viewProjection.m[0], viewProjection.m[7] - viewProjection.m[4],
+                              viewProjection.m[11] - viewProjection.m[8]),
+                        viewProjection.m[15] - viewProjection.m[12]);
+    planes[2].initPlane(-Vec3(viewProjection.m[3] + viewProjection.m[1], viewProjection.m[7] + viewProjection.m[5],
+                              viewProjection.m[11] + viewProjection.m[9]),
+                        viewProjection.m[15] + viewProjection.m[13]);
+    planes[3].initPlane(-Vec3(viewProjection.m[3] - viewProjection.m[1], viewProjection.m[7] - viewProjection.m[5],
+                              viewProjection.m[11] - viewProjection.m[9]),
+                        viewProjection.m[15] - viewProjection.m[13]);
+    planes[4].initPlane(-Vec3(viewProjection.m[3] + viewProjection.m[2], viewProjection.m[7] + viewProjection.m[6],
+                              viewProjection.m[11] + viewProjection.m[10]),
+                        viewProjection.m[15] + viewProjection.m[14]);
+    planes[5].initPlane(-Vec3(viewProjection.m[3] - viewProjection.m[2], viewProjection.m[7] - viewProjection.m[6],
+                              viewProjection.m[11] - viewProjection.m[10]),
+                        viewProjection.m[15] - viewProjection.m[14]);
+}
+
+bool isAABBOutOfViewProjection(const AABB& aabb, const Plane planes[6])
+{
+    Vec3 point;
+    for (int i = 0; i < 6; ++i)
+    {
+        const auto& plane  = planes[i];
+        const Vec3& normal = plane.getNormal();
+        point.x            = normal.x < 0 ? aabb._max.x : aabb._min.x;
+        point.y            = normal.y < 0 ? aabb._max.y : aabb._min.y;
+        point.z            = normal.z < 0 ? aabb._max.z : aabb._min.z;
+
+        if (plane.getSide(point) == PointSide::FRONT_PLANE)
+            return true;
+    }
+
+    return false;
+}
+}  // namespace
+
 Terrain* Terrain::create(TerrainData& parameter, CrackFixedType fixedType)
 {
     Terrain* terrain = new Terrain();
@@ -111,7 +156,7 @@ bool Terrain::initProperties()
     return true;
 }
 
-void Terrain::draw(ax::Renderer* renderer, const ax::Mat4& transform, uint32_t flags)
+void Terrain::draw(const ax::SceneRenderState& state, const ax::Mat4& transform, uint32_t flags)
 {
     auto modelMatrix = getNodeToWorldTransform();
     if (memcmp(&modelMatrix, &_terrainModelMatrix, sizeof(Mat4)) != 0)
@@ -120,8 +165,8 @@ void Terrain::draw(ax::Renderer* renderer, const ax::Mat4& transform, uint32_t f
         _quadRoot->preCalculateAABB(_terrainModelMatrix);
     }
 
-    auto& projectionMatrix = _director->getMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_PROJECTION);
-    auto finalMatrix       = projectionMatrix * transform;
+    const auto& projectionMatrix = state.getViewProjectionMatrix();
+    auto finalMatrix             = projectionMatrix * transform;
     _programState->setUniform(_mvpMatrixLocation, &finalMatrix.m, sizeof(finalMatrix.m));
 
     _programState->setUniform(_lightDirLocation, &_lightDir, sizeof(_lightDir));
@@ -158,19 +203,17 @@ void Terrain::draw(ax::Renderer* renderer, const ax::Mat4& transform, uint32_t f
         _programState->setUniform(_lightMapCheckLocation, &hasLightMap, sizeof(hasLightMap));
         _programState->setTexture(_lightMapLocation, BINDING_SLOT_LIGHT_MAP, _dummyTexture->getRHITexture());
     }
-    auto camera = Camera::getVisitingCamera();
-
-    if (memcmp(&_CameraMatrix, &camera->getViewMatrix(), sizeof(Mat4)) != 0)
+    const auto& viewMatrix = state.getViewMatrix();
+    if (memcmp(&_CameraMatrix, &viewMatrix, sizeof(Mat4)) != 0)
     {
         _isCameraViewChanged = true;
-        _CameraMatrix        = camera->getViewMatrix();
+        _CameraMatrix        = viewMatrix;
     }
 
     if (_isCameraViewChanged)
     {
-        auto m = camera->getNodeToWorldTransform();
         // set lod
-        setChunksLOD(Vec3(m.m[12], m.m[13], m.m[14]));
+        setChunksLOD(state.getView().position);
     }
 
     if (_isCameraViewChanged)
@@ -179,7 +222,9 @@ void Terrain::draw(ax::Renderer* renderer, const ax::Mat4& transform, uint32_t f
         // camera frustum culling
         if (_isEnableFrustumCull)
         {
-            _quadRoot->cullByCamera(camera, _terrainModelMatrix);
+            Plane viewProjectionPlanes[6];
+            buildViewProjectionPlanes(state.getViewProjectionMatrix(), viewProjectionPlanes);
+            _quadRoot->cullByCamera(viewProjectionPlanes, _terrainModelMatrix);
         }
     }
     _quadRoot->draw();
@@ -253,7 +298,7 @@ Terrain::Terrain()
 {
 #if AX_ENABLE_CONTEXT_LOSS_RECOVERY
     _backToForegroundListener =
-        EventListenerCustom::create(EVENT_RENDERER_RECREATED, [this](EventCustom*) { reload(); });
+        CustomEventListener::create(EVENT_RENDERER_RECREATED, [this](CustomEvent*) { reload(); });
     _director->getEventDispatcher()->addEventListenerWithFixedPriority(_backToForegroundListener, 1);
 #endif
     _dummyTexture = _director->getTextureCache()->getWhiteTexture();
@@ -507,16 +552,39 @@ ax::Vec3 Terrain::getIntersectionPoint(const Ray& ray) const
     }
 }
 
+bool Terrain::onPointerHitTest(PointerEvent* event, Vec3* outHitPoint)
+{
+    if (!event || !isVisible())
+        return false;
+
+    Ray ray = event->getRay();
+
+    Vec3 hitPoint;
+
+    bool hitted = getIntersectionPoint(ray, hitPoint);
+    if (!hitted)
+        return false;
+
+    if (outHitPoint)
+    {
+        getNodeToWorldTransform().transformPoint(hitPoint, outHitPoint);
+    }
+
+    return true;
+}
+
 bool Terrain::getIntersectionPoint(const Ray& ray_, Vec3& intersectionPoint) const
 {
     // convert ray from world space to local space
     Ray ray(ray_);
-    getWorldToNodeTransform().transformPoint(&(ray._origin));
+    ray.transform(getWorldToNodeTransform());
 
     std::set<Chunk*> closeList;
-    Vec2 start = Vec2(ray_._origin.x, ray_._origin.z);
-    Vec2 dir   = Vec2(ray._direction.x, ray._direction.z);
-    start      = convertToTerrainSpace(start);
+    Vec2 start              = Vec2(ray.origin.x, ray.origin.z);
+    Vec2 dir                = Vec2(ray.direction.x, ray.direction.z);
+    const float invMapScale = _terrainData._mapScale != 0.0f ? 1.0f / _terrainData._mapScale : 0.0f;
+    start.x                 = (start.x + _terrainData._mapScale * _imageWidth * 0.5f) * invMapScale;
+    start.y                 = (start.y + _terrainData._mapScale * _imageHeight * 0.5f) * invMapScale;
     start.x /= (_terrainData._chunkSize.width + 1);
     start.y /= (_terrainData._chunkSize.height + 1);
     Vec2 delta             = dir.getNormalized();
@@ -525,6 +593,8 @@ bool Terrain::getIntersectionPoint(const Ray& ray_, Vec3& intersectionPoint) con
     bool hasIntersect      = false;
     float intersectionDist = FLT_MAX;
     Vec3 tmpIntersectionPoint;
+    const bool isVerticalRay = dir.lengthSquared() <= 0.000001f;
+
     for (;;)
     {
         int x1 = floorf(start.x);
@@ -542,7 +612,7 @@ bool Terrain::getIntersectionPoint(const Ray& ray_, Vec3& intersectionPoint) con
                     {
                         if (chunk->getIntersectPointWithRay(ray, tmpIntersectionPoint))
                         {
-                            float dist = (ray._origin - tmpIntersectionPoint).length();
+                            float dist = (ray.origin - tmpIntersectionPoint).length();
                             if (intersectionDist > dist)
                             {
                                 hasIntersect      = true;
@@ -554,6 +624,10 @@ bool Terrain::getIntersectionPoint(const Ray& ray_, Vec3& intersectionPoint) con
                     }
                 }
             }
+        }
+        if (isVerticalRay)
+        {
+            break;
         }
         if ((delta.x > 0 && start.x > width) || (delta.x < 0 && start.x < 0))
         {
@@ -1357,7 +1431,7 @@ bool Terrain::Chunk::getIntersectPointWithRay(const Ray& ray, Vec3& intersectPoi
         Vec3 p;
         if (triangle.getIntersectPoint(ray, p))
         {
-            float dist = ray._origin.distance(p);
+            float dist = ray.origin.distance(p);
             if (dist < minDist)
             {
                 intersectPoint = p;
@@ -1572,18 +1646,18 @@ void Terrain::QuadTree::resetNeedDraw(bool value)
     }
 }
 
-void Terrain::QuadTree::cullByCamera(const Camera* camera, const Mat4& worldTransform)
+void Terrain::QuadTree::cullByCamera(const Plane viewProjectionPlanes[6], const Mat4& worldTransform)
 {
-    if (!camera->isVisibleInFrustum(&_worldSpaceAABB))
+    if (isAABBOutOfViewProjection(_worldSpaceAABB, viewProjectionPlanes))
     {
         this->resetNeedDraw(false);
     }
     else if (!_isTerminal)
     {
-        _tl->cullByCamera(camera, worldTransform);
-        _tr->cullByCamera(camera, worldTransform);
-        _bl->cullByCamera(camera, worldTransform);
-        _br->cullByCamera(camera, worldTransform);
+        _tl->cullByCamera(viewProjectionPlanes, worldTransform);
+        _tr->cullByCamera(viewProjectionPlanes, worldTransform);
+        _bl->cullByCamera(viewProjectionPlanes, worldTransform);
+        _br->cullByCamera(viewProjectionPlanes, worldTransform);
     }
 }
 
@@ -1735,7 +1809,7 @@ bool Terrain::Triangle::getIntersectPoint(const Ray& ray, Vec3& intersectPoint) 
 
     // P
     Vec3 P;
-    Vec3::cross(ray._direction, E2, &P);
+    Vec3::cross(ray.direction, E2, &P);
 
     // determinant
     float det = E1.dot(P);
@@ -1744,11 +1818,11 @@ bool Terrain::Triangle::getIntersectPoint(const Ray& ray, Vec3& intersectPoint) 
     Vec3 T;
     if (det > 0)
     {
-        T = ray._origin - _p1;
+        T = ray.origin - _p1;
     }
     else
     {
-        T   = _p1 - ray._origin;
+        T   = _p1 - ray.origin;
         det = -det;
     }
 
@@ -1768,7 +1842,7 @@ bool Terrain::Triangle::getIntersectPoint(const Ray& ray, Vec3& intersectPoint) 
     Vec3::cross(T, E1, &Q);
 
     // Calculate v and make sure u + v <= 1
-    v = ray._direction.dot(Q);
+    v = ray.direction.dot(Q);
     if (v < 0.0f || u + v > det)
         return false;
 
@@ -1778,7 +1852,7 @@ bool Terrain::Triangle::getIntersectPoint(const Ray& ray, Vec3& intersectPoint) 
     float fInvDet = 1.0f / det;
     t *= fInvDet;
 
-    intersectPoint = ray._origin + ray._direction * t;
+    intersectPoint = ray.origin + ray.direction * t;
     return true;
 }
 

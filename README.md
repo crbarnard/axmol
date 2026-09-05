@@ -14,6 +14,7 @@ Please [visit our Wiki](https://github.com/axmolengine/axmol/wiki) to know more 
 
 [![Latest Release](https://img.shields.io/github/v/release/axmolengine/axmol?label=release)](https://github.com/axmolengine/axmol/releases)
 [![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/axmolengine/axmol)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/81fa1aba09ab41a98b949064b928d06e)](https://www.codacy.com/gh/axmolengine/axmol/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=axmolengine/axmol&amp;utm_campaign=Badge_Grade)
 [![cxxstd](https://img.shields.io/badge/cxxstd-c++20-8A2BE2.svg)](https://github.com/axmolengine/axmol)  
 
@@ -48,8 +49,7 @@ Please [visit our Wiki](https://github.com/axmolengine/axmol/wiki) to know more 
 
 ## ⚡️Building
 
-* Download it: [Latest Release](https://github.com/axmolengine/axmol/releases) / [AtomGit Mirror](https://atomgit.com/axmol/axmol) / [SourceForge Mirror](https://sourceforge.net/projects/axmol-engine.mirror) / [Gitee Mirror](https://gitee.com/simdsoft/axmol)
-* [How to install](docs/DevSetup.md)
+👉 [Setup & Building Guide](docs/DevSetup.md)
 
 If you have a Cocos2d-x project, migrating to Axmol Engine is easy. We have prepared a [Migration Guide](https://github.com/axmolengine/axmol/wiki/Cocos2d%E2%80%90x-migration-guide).
 
@@ -89,18 +89,19 @@ Axmol Engine has iterated and improved over the Cocos2d-x v4.0 base. Now is fast
 **Architectures**:
 * iOS/tvOS (x64, arm64)
 * Android (x86, x64, armv7, arm64)
-* Windows (x86, x64)
-* Linux (x64)
+* Windows (x86, x64, arm64)
+* Linux (x64, arm64)
 * OSX (x64, arm64)
 * UWP (x64, arm64)
 * Wasm32, Wasm64(since axmol-v3)
 
+*Note: The arm64 build support for Linux and Windows has been available since Axmol v3.*
+
 **Supported 2D physics engines** ([more info here](https://github.com/axmolengine/axmol/wiki/2D-Physics-Engines-Information)):
 * Box2D
-* ~~Chipmunk2D~~ (Removed in `dev` (v3))
 
 **Supported 3D physics engines**:
-* Bullet Physics SDK
+* JoltPhysics
 
 **Included extensions**:
 * FairyGUI
@@ -163,15 +164,15 @@ How to contribute:
 * Please do not forget to add the topic `axmol` and `axmolengine` to any related repository you create!
 * Adding a star on GitHub will help Axmol grow as well. Thank you!
 
-If you find **Axmol Engine** helpful, please consider donating in [https://axmol.dev/donate](https://axmol.dev/donate). Thank you very much!
+If you find **Axmol Engine** helpful, please consider [supporting its continued development](https://axmol.dev/sponsor). Thank you very much!
 
 ## Sponsors
 
-#### Platinum Sponsors
+#### Corporate Diamond
 
 <p align="left">
   <a href="https://scorewarrior.com/?ad=axmol" target=_blank><img
-    src="https://cdn.prod.website-files.com/633da33305ac754156026dd8/63566f1edf5f0712f94f7f1b_sw-triangle-821890.svg" height="120"
+    src="https://cdn.prod.website-files.com/633da33305ac754156026dd8/63566f1edf5f0712f94f7f1b_sw-triangle-821890.svg" height="160"
   /></a>
 </p>
 
@@ -179,7 +180,7 @@ If you find **Axmol Engine** helpful, please consider donating in [https://axmol
 
 #### More Sponsors
 
-Please visit: [https://axmol.dev/donate](https://axmol.dev/donate)
+Please visit: [our sponsor page](https://axmol.dev/sponsor)
 
 ## Community
 
@@ -193,7 +194,7 @@ In order to see some of our community works, please check our Axmol Showcase: [M
 ## Reference links
 
 - [1kiss](https://github.com/simdsoft/1kiss): A cross-platform one step build powershell script, with auto setup general dependent tools.
-- [axslcc](https://github.com/axmolengine/axslcc): The axmol new shader workflow tool, forked from `glslcc`.
+- [axslcc](https://github.com/axmolengine/axslcc): The Axmol v3 HLSL-first shader compiler and cross-platform shader workflow tool.
 - [Official Cocos2d-x](https://github.com/cocos2d/cocos2d-x)
 
 ## Axmol Stats

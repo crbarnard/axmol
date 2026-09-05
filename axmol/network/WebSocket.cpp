@@ -49,7 +49,7 @@ These codes accompany close frames.
 
 @see <a href="https://tools.ietf.org/html/rfc6455#section-7.4.1">RFC 6455 7.4.1 Defined Status Codes</a>
 */
-enum close_code : std::uint16_t
+enum close_code : uint16_t
 {
     /// Normal closure; the connection successfully completed whatever purpose for which it was created.
     normal = 1000,
@@ -139,7 +139,7 @@ enum close_code : std::uint16_t
 };
 
 // frame header opcodes
-enum class opcode : std::uint8_t
+enum class opcode : uint8_t
 {
     cont   = 0,
     text   = 1,
@@ -184,9 +184,9 @@ struct WebSocketProtocol
         if (fin)
             flags |= WS_FIN;
         auto frame_size = websocket_calc_frame_size((websocket_flags)flags, len);
-        tlx::sbyte_buffer sb;
+        tlx::byte_buffer sb;
         sb.resize(frame_size);
-        websocket_build_frame(sb.data(), (websocket_flags)flags, mask, buf, len);
+        websocket_build_frame(sb.as_chars().data(), (websocket_flags)flags, mask, buf, len);
         return ws._service->write(ws._transport, std::move(sb));  // write(sendbuf_.base, frame_size);
     }
 };
@@ -203,7 +203,7 @@ WebSocket::WebSocket() : _isDestroyed(std::make_shared<std::atomic<bool>>(false)
 
     std::shared_ptr<std::atomic<bool>> isDestroyed = _isDestroyed;
     _resetDirectorListener = Director::getInstance()->getEventDispatcher()->addCustomEventListener(
-        Director::EVENT_RESET, [this, isDestroyed](EventCustom*) {
+        Director::EVENT_RESET, [this, isDestroyed](CustomEvent*) {
         if (*isDestroyed)
             return;
         close();
@@ -398,7 +398,7 @@ int WebSocket::on_frame_end(websocket_parser* parser)
             break;
         case WS_OP_PING:
             AXLOGD("WS: control frame: PING");
-            WebSocketProtocol::sendFrame(*ws, ws->_receivedData.data(), ws->_receivedData.size(),
+            WebSocketProtocol::sendFrame(*ws, ws->_receivedData.as_chars().data(), ws->_receivedData.size(),
                                          ws::detail::opcode::pong);
             break;
         case WS_OP_PONG:
@@ -458,7 +458,8 @@ void WebSocket::close(uint16_t code, std::string_view reason)
             obs.write(_closeCode);
             obs.write_bytes(reason);
 
-            WebSocketProtocol::sendFrame(*this, obs.data(), obs.length(), ws::detail::opcode::close);
+            WebSocketProtocol::sendFrame(*this, reinterpret_cast<const char*>(obs.data()), obs.length(),
+                                         ws::detail::opcode::close);
 
             _service->close(0);
 
@@ -524,7 +525,7 @@ void WebSocket::handleNetworkEvent(yasio::io_event* event)
         if (_state == State::CONNECTING)
         {
             auto&& pkt = event->packet_view();
-            this->do_handshake(pkt.data(), pkt.size());
+            this->do_handshake(reinterpret_cast<const char*>(pkt.data()), pkt.size());
             if (_handshakeFinished)
             {
                 ErrorCode error = ErrorCode::OK;
@@ -574,7 +575,8 @@ void WebSocket::handleNetworkEvent(yasio::io_event* event)
         else if (_state == State::OPEN)
         {
             auto&& pkt = event->packet_view();
-            websocket_parser_execute(&_wsParser, &_wsParserSettings, pkt.data(), pkt.size());
+            websocket_parser_execute(&_wsParser, &_wsParserSettings, std::bit_cast<const char*>(pkt.data()),
+                                     pkt.size());
         }  // else unreachable
         break;
     case YEK_ON_OPEN:

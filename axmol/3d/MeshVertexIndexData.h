@@ -28,8 +28,8 @@
 #include <vector>
 
 #include "axmol/3d/Bundle3DData.h"
-#include "axmol/3d/AABB.h"
-#include "axmol/3d/shaderinfos.h"
+#include "axmol/math/AABB.h"
+#include "axmol/3d/MeshVertexAttribute.h"
 
 #include "axmol/base/Object.h"
 #include "axmol/base/Vector.h"
@@ -97,7 +97,7 @@ protected:
     friend class MeshVertexData;
     friend class MeshRenderer;
 #if AX_ENABLE_CONTEXT_LOSS_RECOVERY
-    EventListenerCustom* _backToForegroundListener = nullptr;
+    CustomEventListener* _backToForegroundListener = nullptr;
 #endif
 };
 
@@ -135,7 +135,7 @@ public:
 
     /**has vertex attribute?*/
     // TODO: will be removed!
-    bool hasVertexAttrib(shaderinfos::VertexKey attrib) const;
+    bool hasVertexAttrib(MeshVertexAttribute attrib) const;
 
     void setVertexData(const std::vector<float>& vertexData);
 
@@ -151,7 +151,7 @@ protected:
     int _vertexCount = 0;  // vertex count
     std::vector<float> _vertexData;
 #if AX_ENABLE_CONTEXT_LOSS_RECOVERY
-    EventListenerCustom* _backToForegroundListener = nullptr;
+    CustomEventListener* _backToForegroundListener = nullptr;
 #endif
 };
 

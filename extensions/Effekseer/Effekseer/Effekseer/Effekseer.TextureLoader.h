@@ -5,8 +5,8 @@
 //----------------------------------------------------------------------------------
 // Include
 //----------------------------------------------------------------------------------
-#include "Backend/GraphicsDevice.h"
-#include "Effekseer.Base.h"
+#include "Backend/Effekseer.GraphicsDevice.h"
+#include "Effekseer.Base.Pre.h"
 
 //----------------------------------------------------------------------------------
 //
@@ -84,6 +84,15 @@ public:
 	*/
 	virtual void Unload(TextureRef data)
 	{
+	}
+};
+
+class TextureLoaderHelper
+{
+public:
+	static bool GetIsMipmapEnabled(const std::u16string& path)
+	{
+		return path.find(u"_NoMip") == std::u16string::npos;
 	}
 };
 

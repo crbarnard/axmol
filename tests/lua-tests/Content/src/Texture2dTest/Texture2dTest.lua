@@ -75,7 +75,7 @@ local function TextureMipMap()
 
     local texture0 = ax.Director:getInstance():getTextureCache():addImage(
         "Images/grossini_dance_atlas.png", true)
-    texture0:setTexParameters(ccb.SamplerFilter.LINEAR_MIPMAP_LINEAR, ccb.SamplerFilter.LINEAR, ccb.SamplerAddressMode.CLAMP_TO_EDGE, ccb.SamplerAddressMode.CLAMP_TO_EDGE)
+    texture0:setTexParameters(axr.SamplerFilter.LINEAR_MIPMAP_LINEAR, axr.SamplerFilter.LINEAR, axr.SamplerAddressMode.CLAMP_TO_EDGE, axr.SamplerAddressMode.CLAMP_TO_EDGE)
 
     local texture1 = ax.Director:getInstance():getTextureCache():addImage(
         "Images/grossini_dance_atlas_nomipmap.png")
@@ -119,7 +119,7 @@ local function TexturePVRMipMap()
         ret:addChild(imgMipMap)
 
         -- support mipmap filtering
-        imgMipMap:getTexture():setTexParameters(ccb.SamplerFilter.LINEAR_MIPMAP_LINEAR, ccb.SamplerFilter.LINEAR, ccb.SamplerAddressMode.CLAMP_TO_EDGE, ccb.SamplerAddressMode.CLAMP_TO_EDGE)
+        imgMipMap:getTexture():setTexParameters(axr.SamplerFilter.LINEAR_MIPMAP_LINEAR, axr.SamplerFilter.LINEAR, axr.SamplerAddressMode.CLAMP_TO_EDGE, axr.SamplerAddressMode.CLAMP_TO_EDGE)
     end
 
     local img = ax.Sprite:create("Images/logo-nomipmap.pvr")
@@ -156,7 +156,7 @@ local function TexturePVRMipMap2()
     ret:addChild(imgMipMap)
 
     -- support mipmap filtering
-    imgMipMap:getTexture():setTexParameters(ccb.SamplerFilter.LINEAR_MIPMAP_LINEAR, ccb.SamplerFilter.LINEAR, ccb.SamplerAddressMode.CLAMP_TO_EDGE, ccb.SamplerAddressMode.CLAMP_TO_EDGE)
+    imgMipMap:getTexture():setTexParameters(axr.SamplerFilter.LINEAR_MIPMAP_LINEAR, axr.SamplerFilter.LINEAR, axr.SamplerAddressMode.CLAMP_TO_EDGE, axr.SamplerAddressMode.CLAMP_TO_EDGE)
 
     local img = ax.Sprite:create("Images/test_image.png")
     img:setPosition(ax.p( s.width/2.0+100, s.height/2.0))
@@ -762,9 +762,9 @@ local function TextureAlias()
     local s = ax.Director:getInstance():getCanvasSize()
 
     --
-    -- Sprite 1: ccb.SamplerFilter.LINEAR
+    -- Sprite 1: axr.SamplerFilter.LINEAR
     --
-    -- Default filter is ccb.SamplerFilter.LINEAR
+    -- Default filter is axr.SamplerFilter.LINEAR
 
     local sprite = ax.Sprite:create("Images/grossinis_sister1.png")
     sprite:setPosition(ax.p( s.width/3.0, s.height/2.0))
@@ -903,21 +903,21 @@ local function TextureBlend()
         local cloud = ax.Sprite:create("Images/test_blend.png")
         ret:addChild(cloud, i+1, 100+i)
         cloud:setPosition(ax.p(50+25*i, 80))
-        cloud:setBlendFunc(ax.blendFunc(ccb.BlendFactor.ONE, ccb.BlendFactor.ONE_MINUS_SRC_ALPHA))
+        cloud:setBlendFunc(ax.blendFunc(axr.BlendFactor.ONE, axr.BlendFactor.ONE_MINUS_SRC_ALPHA))
 
         -- CENTER sprites have also alpha pre-multiplied
         -- they use by default GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA
         cloud = ax.Sprite:create("Images/test_blend.png")
         ret:addChild(cloud, i+1, 200+i)
         cloud:setPosition(ax.p(50+25*i, 160))
-        cloud:setBlendFunc(ax.blendFunc(ccb.BlendFactor.ONE_MINUS_DST_COLOR , ccb.BlendFactor.ZERO))
+        cloud:setBlendFunc(ax.blendFunc(axr.BlendFactor.ONE_MINUS_DST_COLOR , axr.BlendFactor.ZERO))
 
         -- UPPER sprites are using custom blending function
         -- You can set any blend function to your sprites
         cloud = ax.Sprite:create("Images/test_blend.png")
         ret:addChild(cloud, i+1, 200+i)
         cloud:setPosition(ax.p(50+25*i, 320-80))
-        cloud:setBlendFunc(ax.blendFunc(ccb.BlendFactor.SRC_ALPHA, ccb.BlendFactor.ONE))  -- additive blending
+        cloud:setBlendFunc(ax.blendFunc(axr.BlendFactor.SRC_ALPHA, axr.BlendFactor.ONE))  -- additive blending
     end
     return ret
 end
@@ -983,14 +983,14 @@ local function TextureAsync()
 
     local function onNodeEvent(event)
         if event == "enter" then
-            ret:scheduleUpdateWithPriorityLua(loadImages,0)
+            ret:onUpdate(loadImages)
         elseif event == "exit" then
             ret:unscheduleUpdate()
             ax.Director:getInstance():getTextureCache():removeAllTextures()
         end
     end
 
-    ret:registerScriptHandler(onNodeEvent)
+    ret:setLifecycleCallback(onNodeEvent)
     return ret
 end
 
@@ -1009,7 +1009,7 @@ local function TextureGlClamp()
     local sprite = ax.Sprite:create("Images/pattern1.png", ax.rect(0,0,512,256))
     ret:addChild(sprite, -1, kTagSprite1)
     sprite:setPosition(ax.p(size.width/2,size.height/2))
-    sprite:getTexture():setTexParameters(ccb.SamplerFilter.LINEAR, ccb.SamplerFilter.LINEAR, ccb.SamplerAddressMode.CLAMP_TO_EDGE, ccb.SamplerAddressMode.CLAMP_TO_EDGE)
+    sprite:getTexture():setTexParameters(axr.SamplerFilter.LINEAR, axr.SamplerFilter.LINEAR, axr.SamplerAddressMode.CLAMP_TO_EDGE, axr.SamplerAddressMode.CLAMP_TO_EDGE)
 
     local  rotate = ax.RotateBy:create(4, 360)
     sprite:runAction(rotate)
@@ -1023,7 +1023,7 @@ local function TextureGlClamp()
         end
     end
 
-    ret:registerScriptHandler(onNodeEvent)
+    ret:setLifecycleCallback(onNodeEvent)
 
     return ret
 end
@@ -1034,7 +1034,7 @@ end
 --
 --------------------------------------------------------------------
 local function TextureGlRepeat()
-    local ret = createTestLayer("Texture ccb.SamplerFilter.REPEAT")
+    local ret = createTestLayer("Texture axr.SamplerFilter.REPEAT")
 
     local size = ax.Director:getInstance():getCanvasSize()
 
@@ -1043,7 +1043,7 @@ local function TextureGlRepeat()
     local sprite = ax.Sprite:create("Images/pattern1.png", ax.rect(0, 0, 4096, 4096))
     ret:addChild(sprite, -1, kTagSprite1)
     sprite:setPosition(ax.p(size.width/2,size.height/2))
-    sprite:getTexture():setTexParameters(ccb.SamplerFilter.LINEAR, ccb.SamplerFilter.LINEAR, ccb.SamplerAddressMode.REPEAT, ccb.SamplerAddressMode.REPEAT)
+    sprite:getTexture():setTexParameters(axr.SamplerFilter.LINEAR, axr.SamplerFilter.LINEAR, axr.SamplerAddressMode.REPEAT, axr.SamplerAddressMode.REPEAT)
 
     local  rotate = ax.RotateBy:create(4, 360)
     sprite:runAction(rotate)
@@ -1057,7 +1057,7 @@ local function TextureGlRepeat()
         end
     end
 
-    ret:registerScriptHandler(onNodeEvent)
+    ret:setLifecycleCallback(onNodeEvent)
 
     return ret
 end
@@ -1144,97 +1144,6 @@ local function TextureCache1()
     sprite:getTexture():setAntiAliasTexParameters()
     sprite:setScale(2)
     ret:addChild(sprite)
-    return ret
-end
-
--- TextureDrawAtPoint
-local function TextureDrawAtPoint()
-    local m_pTex1 = nil
-    local m_pTex2F = nil
-    local ret = createTestLayer("Texture2D: drawAtPoint",
-                                "draws 2 textures using drawAtPoint")
-
-    local function draw(transform, globalZOrder)
-        local director = ax.Director:getInstance()
-        assert(nil ~= director, "Director is null when setting matrix stack")
-        director:pushMatrix(ax.MATRIX_STACK_TYPE.MODELVIEW)
-        director:loadMatrix(ax.MATRIX_STACK_TYPE.MODELVIEW, transform)
-
-        local s = ax.Director:getInstance():getCanvasSize()
-
-        m_pTex1:drawAtPoint(ax.p(s.width/2-50, s.height/2 - 50), globalZOrder)
-        m_pTex2F:drawAtPoint(ax.p(s.width/2+50, s.height/2 - 50), globalZOrder)
-
-        director:popMatrix(ax.MATRIX_STACK_TYPE.MODELVIEW)
-    end
-
-    m_pTex1 = ax.Director:getInstance():getTextureCache():addImage("Images/grossinis_sister1.png")
-    m_pTex2F = ax.Director:getInstance():getTextureCache():addImage("Images/grossinis_sister2.png")
-
-    m_pTex1:retain()
-    m_pTex2F:retain()
-
-    local luaNode = ax.LuaNode:create()
-    luaNode:setContentSize(ax.size(256, 256))
-    luaNode:setAnchorPoint(ax.p(0,0))
-    luaNode:registerScriptDrawHandler(draw)
-    ret:addChild(luaNode)
-
-    local function onNodeEvent(event)
-        if event == "exit" then
-            m_pTex1:release()
-            m_pTex2F:release()
-        end
-    end
-
-    ret:registerScriptHandler(onNodeEvent)
-
-    return ret
-end
-
--- TextureDrawInRect
-
-local function TextureDrawInRect()
-    local m_pTex1 = nil
-    local m_pTex2F = nil
-    local ret = createTestLayer("Texture2D: drawInRect",
-                                "draws 2 textures using drawInRect")
-    local function draw(transform, globalZOrder)
-        local director = ax.Director:getInstance()
-        assert(nullptr ~= director, "Director is null when setting matrix stack")
-        director:pushMatrix(ax.MATRIX_STACK_TYPE.MODELVIEW)
-        director:loadMatrix(ax.MATRIX_STACK_TYPE.MODELVIEW, transform)
-
-        local s = ax.Director:getInstance():getCanvasSize()
-
-        local rect1 = ax.rect( s.width/2 - 80, 20, m_pTex1:getContentSize().width * 0.5, m_pTex1:getContentSize().height *2 )
-        local rect2 = ax.rect( s.width/2 + 80, s.height/2, m_pTex1:getContentSize().width * 2, m_pTex1:getContentSize().height * 0.5 )
-
-        m_pTex1:drawInRect(rect1, globalZOrder)
-        m_pTex2F:drawInRect(rect2, globalZOrder)
-    end
-
-    m_pTex1 = ax.Director:getInstance():getTextureCache():addImage("Images/grossinis_sister1.png")
-    m_pTex2F = ax.Director:getInstance():getTextureCache():addImage("Images/grossinis_sister2.png")
-
-    m_pTex1:retain()
-    m_pTex2F:retain()
-
-    local luaNode = ax.LuaNode:create()
-    luaNode:setContentSize(ax.size(256, 256))
-    luaNode:setAnchorPoint(ax.p(0,0))
-    luaNode:registerScriptDrawHandler(draw)
-    ret:addChild(luaNode)
-
-    local function onNodeEvent(event)
-        if event == "exit" then
-            m_pTex1:release()
-            m_pTex2F:release()
-        end
-    end
-
-    ret:registerScriptHandler(onNodeEvent)
-
     return ret
 end
 
@@ -1419,9 +1328,7 @@ function Texture2dTestMain()
         TextureGlClamp,
         TextureGlRepeat,
         TextureSizeTest,
-        TextureCache1,
-        TextureDrawAtPoint,
-        TextureDrawInRect
+        TextureCache1
     }
     Helper.index = 1
 

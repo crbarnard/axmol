@@ -4,7 +4,7 @@
  *
  *   User-selectable configuration macros (specification only).
  *
- * Copyright (C) 1996-2025 by
+ * Copyright (C) 1996-2026 by
  * David Turner, Robert Wilhelm, and Werner Lemberg.
  *
  * This file is part of the FreeType project, and may only be used,
@@ -332,6 +332,22 @@ FT_BEGIN_HEADER
    *   here with the configured one.
    */
 /* #define FT_CONFIG_OPTION_USE_BROTLI */
+
+
+  /**************************************************************************
+   *
+   * HVF support.
+   *
+   *   FreeType can use Apple's HVF (Hierarchical Variable Font) library
+   *   to render glyphs from fonts containing 'hvgl' tables.
+   *
+   *   Define this macro if you want to enable this 'feature'.
+   *
+   *   If you use a build system like cmake or the `configure` script,
+   *   options set by those programs have precedence, overwriting the value
+   *   here with the configured one.
+   */
+/* #define FT_CONFIG_OPTION_HVF */
 
 
   /**************************************************************************
@@ -759,7 +775,13 @@ FT_BEGIN_HEADER
   /**************************************************************************
    *
    * Define `TT_CONFIG_OPTION_BDF` if you want to include support for an
-   * embedded 'BDF~' table within SFNT-based bitmap formats.
+   * embedded 'BDF~' table within an SFNT-based `.otb` font file.  This table
+   * is an extension used by X11 to preserve BDF properties after conversion
+   * to SFNT containers.  See
+   *
+   *   https://fontforge.org/docs/techref/non-standard.html#non-standard-bdf
+   *
+   * for more details.
    */
 #define TT_CONFIG_OPTION_BDF
 

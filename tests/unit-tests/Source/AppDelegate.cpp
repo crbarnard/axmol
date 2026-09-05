@@ -33,7 +33,7 @@ using namespace ax;
 
 static Vec2 gWindowSize = Vec2(1024, 768);
 
-void AppDelegate::initContextAttrs()
+void AppDelegate::applicationWillLaunch()
 {
     // set context attributes: red,green,blue,alpha,depth,stencil
     ContextAttrs contextAttrs = {8, 8, 8, 8, 24, 8, 0};
@@ -55,10 +55,10 @@ bool AppDelegate::applicationDidFinishLaunching()
     if (!renderView)
     {
         std::string title = "Unit Tests";
-#ifdef AX_PLATFORM_PC
-        renderView = RenderViewImpl::createWithRect(title, Rect(0, 0, gWindowSize.x, gWindowSize.y), 1.0F, true);
+#ifdef AX_PLATFORM_GLFW
+        renderView = RenderView::createWithRect(title, Rect(0, 0, gWindowSize.x, gWindowSize.y), 1.0F, true);
 #else
-        renderView = RenderViewImpl::createWithRect(title, Rect(0, 0, gWindowSize.x, gWindowSize.y));
+        renderView = RenderView::createWithRect(title, Rect(0, 0, gWindowSize.x, gWindowSize.y));
 #endif
         director->setRenderView(renderView);
     }
@@ -66,7 +66,7 @@ bool AppDelegate::applicationDidFinishLaunching()
     director->setStatsDisplay(true);
 
 #ifdef AX_PLATFORM_PC
-    director->setAnimationInterval(1.0f / glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate);
+    director->setAnimationInterval(1.0f / Device::getDisplayRefreshRate());
 #else
     director->setAnimationInterval(1.0f / 60);
 #endif
@@ -80,12 +80,12 @@ bool AppDelegate::applicationDidFinishLaunching()
 
 void AppDelegate::applicationDidEnterBackground()
 {
-    Director::getInstance()->stopAnimation();
+    Director::getInstance()->deactivate();
 }
 
 void AppDelegate::applicationWillEnterForeground()
 {
-    Director::getInstance()->startAnimation();
+    Director::getInstance()->activate();
 }
 
 int AppDelegate::run(int argc, char** argv)

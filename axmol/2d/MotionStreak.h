@@ -28,7 +28,7 @@ THE SOFTWARE.
 #pragma once
 
 #include "axmol/base/Protocols.h"
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/renderer/CustomCommand.h"
 #include "axmol/tlx/vector.hpp"
 
@@ -91,7 +91,7 @@ public:
     /**
      * @lua NA
      */
-    void draw(Renderer* renderer, const Mat4& transform, uint32_t flags) override;
+    void draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags) override;
     /**
      * @lua NA
      */

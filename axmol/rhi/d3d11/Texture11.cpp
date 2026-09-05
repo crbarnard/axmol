@@ -22,10 +22,10 @@
  THE SOFTWARE.
  ****************************************************************************/
 #include "axmol/rhi/d3d11/Texture11.h"
-#include "axmol/rhi/d3d11/Driver11.h"
+#include "axmol/rhi/d3d11/GraphicsDevice11.h"
 #include "axmol/rhi/DXUtils.h"
 #include "axmol/rhi/RHIUtils.h"
-#include "axmol/rhi/SamplerCache.h"
+#include "axmol/rhi/SamplerRegistry.h"
 
 namespace ax::rhi::d3d11
 {
@@ -118,6 +118,8 @@ static void fromD3DTexDesc(TextureDesc& td, const D3D11_TEXTURE2D_DESC& desc)
 TextureImpl::TextureImpl(ID3D11Device* device, const TextureDesc& desc) : _device(device)
 {
     updateTextureDesc(desc);
+    if (desc.textureUsage == TextureUsage::RENDER_TARGET)
+        ensureNativeTexture();
 }
 
 TextureImpl::TextureImpl(ID3D11Device* device, ID3D11Texture2D* texture) : _device(device)
@@ -143,7 +145,7 @@ TextureImpl::~TextureImpl()
 void TextureImpl::updateSamplerDesc(const SamplerDesc& desc)
 {
     _desc.samplerDesc = desc;
-    _samplerState     = static_cast<ID3D11SamplerState*>(SamplerCache::getInstance()->getSampler(desc));
+    _samplerState     = static_cast<ID3D11SamplerState*>(SamplerRegistry::getInstance()->getSampler(desc));
 }
 
 // ------------------------------------------------------------
@@ -166,7 +168,7 @@ void TextureImpl::updateData(const void* data, int width, int height, int level,
 void TextureImpl::updateCompressedData(const void* data,
                                        int width,
                                        int height,
-                                       std::size_t dataSize,
+                                       size_t dataSize,
                                        int level,
                                        int layerIndex /*=0*/)
 {
@@ -198,7 +200,7 @@ void TextureImpl::updateSubData(int xoffset,
     auto rowPitch   = RHIUtils::computeRowPitch(_desc.pixelFormat, static_cast<uint32_t>(width));
     UINT slicePitch = rowPitch * static_cast<UINT>(height);
 
-    auto context     = static_cast<DriverImpl*>(axdrv)->getContext();
+    auto context     = static_cast<GraphicsDeviceImpl*>(axdrv)->getContext();
     UINT subresource = D3D11CalcSubresource(level, layerIndex, _desc.mipLevels);
     context->UpdateSubresource(_nativeTexture, subresource, &box, data, rowPitch, slicePitch);
 
@@ -210,7 +212,7 @@ void TextureImpl::updateCompressedSubData(int xoffset,
                                           int yoffset,
                                           int width,
                                           int height,
-                                          std::size_t /*dataSize*/,
+                                          size_t /*dataSize*/,
                                           int level,
                                           const void* data,
                                           int layerIndex /*=0*/)
@@ -226,9 +228,10 @@ void TextureImpl::updateCompressedSubData(int xoffset,
     box.bottom = static_cast<UINT>(yoffset + height);
     box.back   = 1;
 
-    auto context     = static_cast<DriverImpl*>(axdrv)->getContext();
-    UINT subresource = D3D11CalcSubresource(level, layerIndex, _desc.mipLevels);
-    context->UpdateSubresource(_nativeTexture, subresource, &box, data, 0, 0);
+    auto context        = static_cast<GraphicsDeviceImpl*>(axdrv)->getContext();
+    UINT subresource    = D3D11CalcSubresource(level, layerIndex, _desc.mipLevels);
+    const auto rowPitch = RHIUtils::computeRowPitch(_desc.pixelFormat, width);
+    context->UpdateSubresource(_nativeTexture, subresource, &box, data, rowPitch, 0);
 
     if (shouldGenMipmaps(level))
         generateMipmaps(context);
@@ -239,7 +242,7 @@ void TextureImpl::updateFaceData(TextureCubeFace side, const void* data)
     assert(_desc.textureType == TextureType::TEXTURE_CUBE);
     ensureNativeTexture();
 
-    auto context = static_cast<DriverImpl*>(axdrv)->getContext();
+    auto context = static_cast<GraphicsDeviceImpl*>(axdrv)->getContext();
 
     //-------------------------------------------------------------------
     // 1. compute SubResource： = 6 * (mip-levels)

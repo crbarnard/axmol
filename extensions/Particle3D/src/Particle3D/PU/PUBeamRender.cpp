@@ -36,7 +36,7 @@
 #include "axmol/base/Director.h"
 #include "axmol/3d/MeshRenderer.h"
 #include "axmol/3d/Mesh.h"
-#include "axmol/2d/Camera.h"
+#include "axmol/scene/Camera.h"
 #include <sstream>
 
 namespace ax
@@ -58,7 +58,7 @@ PUBeamRender* PUBeamRender::create(std::string_view texFile)
     return br;
 }
 
-void PUBeamRender::render(Renderer* renderer, const Mat4& transform, ParticleSystem3D* particleSystem)
+void PUBeamRender::render(const SceneRenderState& state, const Mat4& transform, ParticleSystem3D* particleSystem)
 {
     const ParticlePool& particlePool = particleSystem->getParticlePool();
     if (!_isVisible || particlePool.empty() || !_billboardChain)
@@ -75,7 +75,7 @@ void PUBeamRender::render(Renderer* renderer, const Mat4& transform, ParticleSys
             PUSimpleSpline spline;
 
             // Add points
-            spline.addPoint(Vec3::ZERO);
+            spline.addPoint(Vec3::zero);
             for (size_t numDev = 0; numDev < _numberOfSegments; ++numDev)
             {
                 spline.addPoint(visualData->half[numDev]);
@@ -106,7 +106,7 @@ void PUBeamRender::render(Renderer* renderer, const Mat4& transform, ParticleSys
         }
     }
 
-    _billboardChain->render(renderer, transform, particleSystem);
+    _billboardChain->render(state, transform, particleSystem);
 }
 
 PUBeamRender::PUBeamRender()
@@ -268,8 +268,8 @@ void PUBeamRender::prepare()
         {
             PUBillboardChain::Element element;
             element = PUBillboardChain::Element(
-                Vec3::ZERO, _rendererScale.x * static_cast<PUParticleSystem3D*>(_particleSystem)->getDefaultWidth(),
-                0.0f, Color::WHITE, Quaternion::identity());  // V1.51
+                Vec3::zero, _rendererScale.x * static_cast<PUParticleSystem3D*>(_particleSystem)->getDefaultWidth(),
+                0.0f, Color::white, Quat::identity);  // V1.51
             _billboardChain->addChainElement(i, element);
         }
 

@@ -23,10 +23,10 @@ local EventDispatcherScene = class("EventDispatcherScene")
 EventDispatcherScene.__index = EventDispatcherScene
 
 function EventDispatcherScene.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, EventDispatcherScene)
     return target
@@ -185,10 +185,10 @@ local TouchableSpriteTest = class("TouchableSpriteTest",EventDispatcherTestDemo)
 TouchableSpriteTest.__index = TouchableSpriteTest
 
 function TouchableSpriteTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, TouchableSpriteTest)
     return target
@@ -210,10 +210,10 @@ function TouchableSpriteTest:onEnter()
     sprite3:setPosition(ax.p(0, 0))
     sprite2:addChild(sprite3, 1)
 
-    local function onTouchBegan(touch, event)
+    local function onTouchBegan(event)
         local target = event:getCurrentTarget()
 
-        local locationInNode = target:convertToNodeSpace(touch:getLocation())
+        local locationInNode = target:convertToNodeSpace(event:getWorldPoint())
         local s = target:getContentSize()
         local rect = ax.rect(0, 0, s.width, s.height)
 
@@ -225,14 +225,14 @@ function TouchableSpriteTest:onEnter()
         return false
     end
 
-    local function onTouchMoved(touch, event)
+    local function onPointerMove(event)
         local target = event:getCurrentTarget()
         local posX,posY = target:getPosition()
-        local delta = touch:getDelta()
+        local delta = ax.pSub(event:getPoint(), event:getPrevPoint())
         target:setPosition(ax.p(posX + delta.x, posY + delta.y))
     end
 
-    local function onTouchEnded(touch, event)
+    local function onTouchEnded(event)
         local target = event:getCurrentTarget()
         print("sprite onTouchesEnded..")
         target:setOpacity(255)
@@ -243,11 +243,10 @@ function TouchableSpriteTest:onEnter()
         end
     end
 
-    local listener1 = ax.EventListenerTouchOneByOne:create()
-    listener1:setSwallowTouches(true)
-    listener1:registerScriptHandler(onTouchBegan,ax.Handler.EVENT_TOUCH_BEGAN )
-    listener1:registerScriptHandler(onTouchMoved,ax.Handler.EVENT_TOUCH_MOVED )
-    listener1:registerScriptHandler(onTouchEnded,ax.Handler.EVENT_TOUCH_ENDED )
+    local listener1 = ax.PointerEventListener:create()
+    listener1.onPointerDown = onTouchBegan
+    listener1.onPointerMove = onPointerMove
+    listener1.onPointerUp = onTouchEnded
     local eventDispatcher = self:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener1, sprite1)
 
@@ -259,7 +258,7 @@ function TouchableSpriteTest:onEnter()
 
     local function removeAllTouchItem(tag, sender)
         sender:setString("Only Next item could be clicked")
-        eventDispatcher:removeEventListenersForType(ax.EVENT_TOUCH_ONE_BY_ONE)
+        eventDispatcher:removeEventListenersForType(ax.EVENT_POINTER)
 
         local nextMenuItem = ax.MenuItemFont:create("Next")
         nextMenuItem:setFontSizeObj(16)
@@ -295,7 +294,7 @@ function TouchableSpriteTest.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
     return layer
 end
 
@@ -307,10 +306,10 @@ TouchableSpriteWithFixedPriority._useNodePriority = false
 TouchableSpriteWithFixedPriority._removeListenerOnTouchEnded = false
 
 function TouchableSpriteWithFixedPriority.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, TouchableSpriteWithFixedPriority)
     return target
@@ -319,8 +318,8 @@ end
 function TouchableSpriteWithFixedPriority:onEnter()
     local eventDispatcher = self:getEventDispatcher()
 
-    local function onTouchBegan(touch, event)
-        local locationInNode = self:convertToNodeSpace(touch:getLocation())
+    local function onTouchBegan(event)
+        local locationInNode = self:convertToNodeSpace(event:getWorldPoint())
         local s = self:getContentSize()
         local rect = ax.rect(0, 0, s.width, s.height)
 
@@ -332,11 +331,11 @@ function TouchableSpriteWithFixedPriority:onEnter()
         return false
     end
 
-    local function onTouchMoved(touch, event)
+    local function onPointerMove(event)
 
     end
 
-    local  function onTouchEnded(touch, event)
+    local  function onTouchEnded(event)
         self:setColor(ax.color32(255, 255, 255))
         if self._removeListenerOnTouchEnded then
             eventDispatcher:removeEventListener(self._listener)
@@ -345,13 +344,12 @@ function TouchableSpriteWithFixedPriority:onEnter()
 
     end
 
-    local listener = ax.EventListenerTouchOneByOne:create()
+    local listener = ax.PointerEventListener:create()
     self._listener = listener
-    listener:setSwallowTouches(true)
 
-    listener:registerScriptHandler(onTouchBegan,ax.Handler.EVENT_TOUCH_BEGAN )
-    listener:registerScriptHandler(onTouchMoved,ax.Handler.EVENT_TOUCH_MOVED )
-    listener:registerScriptHandler(onTouchEnded,ax.Handler.EVENT_TOUCH_ENDED )
+    listener.onPointerDown = onTouchBegan
+    listener.onPointerMove = onPointerMove
+    listener.onPointerUp = onTouchEnded
 
     if 0 == self._fixedPriority then
         eventDispatcher:addEventListenerWithSceneGraphPriority(listener, self)
@@ -392,7 +390,7 @@ function TouchableSpriteWithFixedPriority.create()
         end
     end
 
-    touchableSprite:registerScriptHandler(onNodeEvent)
+    touchableSprite:setLifecycleCallback(onNodeEvent)
     return touchableSprite
 end
 
@@ -400,10 +398,10 @@ local FixedPriorityTest = class("FixedPriorityTest",EventDispatcherTestDemo)
 FixedPriorityTest.__index = FixedPriorityTest
 
 function FixedPriorityTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, FixedPriorityTest)
     return target
@@ -444,7 +442,7 @@ function FixedPriorityTest.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
     return layer
 end
 
@@ -452,10 +450,10 @@ local RemoveListenerWhenDispatchingTest = class("RemoveListenerWhenDispatchingTe
 RemoveListenerWhenDispatchingTest.__index = RemoveListenerWhenDispatchingTest
 
 function RemoveListenerWhenDispatchingTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, RemoveListenerWhenDispatchingTest)
     return target
@@ -469,8 +467,8 @@ function RemoveListenerWhenDispatchingTest:onEnter()
     sprite1:setPosition(ax.p(origin.x + size.width/2, origin.y + size.height/2))
     self:addChild(sprite1, 10)
 
-    local function onTouchBegan(touch, event)
-        local locationInNode = sprite1:convertToNodeSpace(touch:getLocation())
+    local function onTouchBegan(event)
+        local locationInNode = sprite1:convertToNodeSpace(event:getWorldPoint())
         local s = sprite1:getContentSize()
         local rect = ax.rect(0, 0, s.width, s.height)
 
@@ -482,16 +480,15 @@ function RemoveListenerWhenDispatchingTest:onEnter()
         return false
     end
 
-    local function onTouchEnded(touch, event)
+    local function onTouchEnded(event)
         sprite1:setColor(ax.color32(255, 255, 255))
     end
 
-    local listener1 = ax.EventListenerTouchOneByOne:create()
-    listener1:setSwallowTouches(true)
+    local listener1 = ax.PointerEventListener:create()
     self:setUserObject(listener1)
 
-    listener1:registerScriptHandler(onTouchBegan,ax.Handler.EVENT_TOUCH_BEGAN )
-    listener1:registerScriptHandler(onTouchEnded,ax.Handler.EVENT_TOUCH_ENDED )
+    listener1.onPointerDown = onTouchBegan
+    listener1.onPointerUp = onTouchEnded
 
     local eventDispatcher = self:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener1, sprite1)
@@ -536,7 +533,7 @@ function RemoveListenerWhenDispatchingTest.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
     return layer
 end
 
@@ -546,10 +543,10 @@ CustomEventTest._listener1 = nil
 CustomEventTest._listener2 = nil
 
 function CustomEventTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, CustomEventTest)
     return target
@@ -573,7 +570,7 @@ function CustomEventTest:onEnter()
         statusLabel1:setString(str)
     end
 
-    local listener1 = ax.EventListenerCustom:create("game_custom_event1",eventCustomListener1)
+    local listener1 = ax.CustomEventListener:create("game_custom_event1",eventCustomListener1)
     self._listener1 = listener1
     local eventDispatcher = self:getEventDispatcher()
     eventDispatcher:addEventListenerWithFixedPriority(listener1, 1)
@@ -581,7 +578,7 @@ function CustomEventTest:onEnter()
     local function sendCallback1(tag, sender)
         count1 = count1 + 1
 
-        local event = ax.EventCustom:new("game_custom_event1")
+        local event = ax.CustomEvent:new("game_custom_event1")
         event._usedata = string.format("%d",count1)
         eventDispatcher:dispatchEvent(event)
     end
@@ -599,14 +596,14 @@ function CustomEventTest:onEnter()
         statusLabel2:setString(str)
     end
 
-    local listener2 = ax.EventListenerCustom:create("game_custom_event2",eventCustomListener2)
+    local listener2 = ax.CustomEventListener:create("game_custom_event2",eventCustomListener2)
     CustomEventTest._listener2 = listener2
     eventDispatcher:addEventListenerWithFixedPriority(listener2, 1)
 
     local function sendCallback2(tag, sender)
         count2 = count2 + 1
 
-        local event = ax.EventCustom:new("game_custom_event2")
+        local event = ax.CustomEvent:new("game_custom_event2")
         event._usedata = string.format("%d",count2)
         eventDispatcher:dispatchEvent(event)
     end
@@ -639,7 +636,7 @@ function CustomEventTest.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
     return layer
 end
 
@@ -649,10 +646,10 @@ local LabelKeyboardEventTest = class("LabelKeyboardEventTest",EventDispatcherTes
 LabelKeyboardEventTest.__index = LabelKeyboardEventTest
 
 function LabelKeyboardEventTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, LabelKeyboardEventTest)
     return target
@@ -667,21 +664,21 @@ function LabelKeyboardEventTest:onEnter()
     statusLabel:setPosition(ax.p(origin.x + size.width/2,origin.y + size.height/2))
     self:addChild(statusLabel)
 
-    local function onKeyPressed(keyCode, event)
-        local buf = string.format("Key %d was pressed!",keyCode)
+    local function onKeyPressed(event)
+        local buf = string.format("Key %d was pressed!",event:getKeyCode())
         local label = event:getCurrentTarget()
         label:setString(buf)
     end
 
-    local function onKeyReleased(keyCode, event)
-        local buf = string.format("Key %d was released!",keyCode)
+    local function onKeyReleased(event)
+        local buf = string.format("Key %d was released!",event:getKeyCode())
         local label = event:getCurrentTarget()
         label:setString(buf)
     end
 
-    local listener = ax.EventListenerKeyboard:create()
-    listener:registerScriptHandler(onKeyPressed, ax.Handler.EVENT_KEYBOARD_PRESSED )
-    listener:registerScriptHandler(onKeyReleased, ax.Handler.EVENT_KEYBOARD_RELEASED )
+    local listener = ax.KeyboardEventListener:create()
+    listener.onKeyPressed = onKeyPressed
+    listener.onKeyReleased = onKeyReleased
 
     local eventDispatcher = self:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, statusLabel)
@@ -700,7 +697,7 @@ function LabelKeyboardEventTest.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
     return layer
 end
 
@@ -708,10 +705,10 @@ local SpriteAccelerationEventTest = class("SpriteAccelerationEventTest",EventDis
 SpriteAccelerationEventTest.__index = SpriteAccelerationEventTest
 
 function SpriteAccelerationEventTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, SpriteAccelerationEventTest)
     return target
@@ -751,7 +748,7 @@ function SpriteAccelerationEventTest:onEnter()
         target:setPosition(ax.p(ptNowX , ptNowY))
     end
 
-    local listener = ax.EventListenerAcceleration:create(accelerometerListener)
+    local listener = ax.AccelerationEventListener:create(accelerometerListener)
 
     self:getEventDispatcher():addEventListenerWithSceneGraphPriority(listener, sprite)
 end
@@ -773,7 +770,7 @@ function SpriteAccelerationEventTest.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
     return layer
 end
 
@@ -784,10 +781,10 @@ RemoveAndRetainNodeTest._spriteSaved = false
 RemoveAndRetainNodeTest._sprite      = nil
 
 function RemoveAndRetainNodeTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, RemoveAndRetainNodeTest)
     return target
@@ -803,9 +800,9 @@ function RemoveAndRetainNodeTest:onEnter()
     self._sprite = sprite
     self:addChild(sprite, 10)
 
-    local function onTouchBegan(touch,event)
+    local function onTouchBegan(event)
         local target = event:getCurrentTarget()
-        local locationInNode = target:convertToNodeSpace(touch:getLocation())
+        local locationInNode = target:convertToNodeSpace(event:getWorldPoint())
         local s = target:getContentSize()
         local rect = ax.rect(0, 0, s.width, s.height)
 
@@ -817,33 +814,31 @@ function RemoveAndRetainNodeTest:onEnter()
         return false
     end
 
-    local function onTouchMoved(touch,event)
+    local function onPointerMove(event)
         local target = event:getCurrentTarget()
         local posX,posY = target:getPosition()
-        local delta = touch:getDelta()
-        local force = touch:getCurrentForce()
-        local maxForce = touch:getMaxForce()
-        if force > 0.0 and (force / maxForce) > 0.8 then
+        local delta = ax.pSub(event:getPoint(), event:getPrevPoint())
+        local pressure = event:getPressure()
+        if pressure > 0.8 then
             local origin = ax.Director:getInstance():getVisibleOrigin()
             local size = ax.Director:getInstance():getVisibleSize()
             target:setPosition(ax.p(origin.x + size.width/2, origin.y + size.height/2))
-            print(string.format("3D touch detected, reset to default position. force = %f, max force = %f", force, maxForce))
+            print(string.format("3D touch detected, reset to default position. pressure = %f", pressure))
         else
             target:setPosition(ax.p(posX + delta.x, posY + delta.y))
         end
     end
 
-    local function onTouchEnded(touch,event)
+    local function onTouchEnded(event)
         local target = event:getCurrentTarget()
         print("sprite onTouchesEnded.. ")
         target:setOpacity(255)
     end
 
-    local listener1 = ax.EventListenerTouchOneByOne:create()
-    listener1:setSwallowTouches(true)
-    listener1:registerScriptHandler(onTouchBegan,ax.Handler.EVENT_TOUCH_BEGAN)
-    listener1:registerScriptHandler(onTouchMoved,ax.Handler.EVENT_TOUCH_MOVED)
-    listener1:registerScriptHandler(onTouchEnded,ax.Handler.EVENT_TOUCH_ENDED)
+    local listener1 = ax.PointerEventListener:create()
+    listener1.onPointerDown = onTouchBegan
+    listener1.onPointerMove = onPointerMove
+    listener1.onPointerUp = onTouchEnded
     self:getEventDispatcher():addEventListenerWithSceneGraphPriority(listener1, sprite)
 
     local function retainSprite()
@@ -885,7 +880,7 @@ function RemoveAndRetainNodeTest.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
     return layer
 end
 
@@ -894,10 +889,10 @@ RemoveListenerAfterAddingTest.__index = RemoveListenerAfterAddingTest
 
 
 function RemoveListenerAfterAddingTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, RemoveListenerAfterAddingTest)
     return target
@@ -909,13 +904,13 @@ function RemoveListenerAfterAddingTest:onEnter()
 
     local function item1Callback(tag, sender)
 
-        local function onTouchBegan(touch, event)
+        local function onTouchBegan(event)
             AXASSERT(false, "Should not come here!")
             return true
         end
 
-        local listener = ax.EventListenerTouchOneByOne:create()
-        listener:registerScriptHandler(onTouchBegan, ax.Handler.EVENT_TOUCH_BEGAN)
+        local listener = ax.PointerEventListener:create()
+        listener.onPointerDown = onTouchBegan
         eventDispatcher:addEventListenerWithFixedPriority(listener, -1)
         eventDispatcher:removeEventListener(listener)
     end
@@ -942,16 +937,16 @@ function RemoveListenerAfterAddingTest:onEnter()
 
     local function item2Callback( tag, sender )
 
-        local function onTouchBegan(touch, event)
+        local function onTouchBegan(event)
             print("Should not come here!")
             return true
         end
 
-        local listener = ax.EventListenerTouchOneByOne:create()
-        listener:registerScriptHandler(onTouchBegan,ax.Handler.EVENT_TOUCH_BEGAN)
+        local listener = ax.PointerEventListener:create()
+        listener.onPointerDown = onTouchBegan
 
         eventDispatcher:addEventListenerWithFixedPriority(listener, -1)
-        eventDispatcher:removeEventListenersForType(ax.EVENT_TOUCH_ONE_BY_ONE)
+        eventDispatcher:removeEventListenersForType(ax.EVENT_POINTER)
 
         addNextButton()
 
@@ -963,13 +958,13 @@ function RemoveListenerAfterAddingTest:onEnter()
 
     local function item3Callback( tag, sender )
 
-        local function onTouchBegan(touch, event)
+        local function onTouchBegan(event)
             print("Should not come here!")
             return true
         end
 
-        local listener = ax.EventListenerTouchOneByOne:create()
-        listener:registerScriptHandler(onTouchBegan,ax.Handler.EVENT_TOUCH_BEGAN)
+        local listener = ax.PointerEventListener:create()
+        listener.onPointerDown = onTouchBegan
 
         eventDispatcher:addEventListenerWithFixedPriority(listener, -1)
         eventDispatcher:removeAllEventListeners()
@@ -1006,7 +1001,7 @@ function RemoveListenerAfterAddingTest.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
     return layer
 end
 
@@ -1017,20 +1012,20 @@ GlobalZTouchTest._accum  = 0
 GlobalZTouchTest._layer  = nil
 
 function GlobalZTouchTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, GlobalZTouchTest)
     return target
 end
 
 function GlobalZTouchTest:onEnter()
-    local function onTouchBegan(touch, event)
+    local function onTouchBegan(event)
         local target = event:getCurrentTarget()
 
-        local locationInNode = target:convertToNodeSpace(touch:getLocation())
+        local locationInNode = target:convertToNodeSpace(event:getWorldPoint())
         local s = target:getContentSize()
         local rect = ax.rect(0, 0, s.width, s.height)
 
@@ -1042,24 +1037,23 @@ function GlobalZTouchTest:onEnter()
         return false
     end
 
-    local function onTouchMoved(touch, event)
+    local function onPointerMove(event)
         local target = event:getCurrentTarget()
         local posX,posY = target:getPosition()
-        local delta = touch:getDelta()
+        local delta = ax.pSub(event:getPoint(), event:getPrevPoint())
         target:setPosition(ax.p(posX + delta.x, posY + delta.y))
     end
 
-    local function onTouchEnded(touch, event)
+    local function onTouchEnded(event)
         local target = event:getCurrentTarget()
         print("sprite onTouchesEnded..")
         target:setOpacity(255)
     end
 
-    local listener = ax.EventListenerTouchOneByOne:create()
-    listener:setSwallowTouches(true)
-    listener:registerScriptHandler(onTouchBegan,ax.Handler.EVENT_TOUCH_BEGAN )
-    listener:registerScriptHandler(onTouchMoved,ax.Handler.EVENT_TOUCH_MOVED )
-    listener:registerScriptHandler(onTouchEnded,ax.Handler.EVENT_TOUCH_ENDED )
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerDown = onTouchBegan
+    listener.onPointerMove = onPointerMove
+    listener.onPointerUp = onTouchEnded
 
     local SPRITE_COUNT = 8
     for i = 0, SPRITE_COUNT - 1 do
@@ -1087,7 +1081,7 @@ function GlobalZTouchTest:onEnter()
             self._accum = 0
         end
     end
-    self._layer:scheduleUpdateWithPriorityLua(update, 0)
+    self._layer:onUpdate(update)
 end
 
 function GlobalZTouchTest:onExit()
@@ -1107,7 +1101,7 @@ function GlobalZTouchTest.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
     GlobalZTouchTest._layer  = layer
     return layer
 end
@@ -1119,10 +1113,10 @@ local TAG_BLUE_SPRITE2 = 102
 local SPRITE_COUNT    = 8
 
 function StopPropagationTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, StopPropagationTest)
     return target
@@ -1130,13 +1124,13 @@ end
 
 function StopPropagationTest:onEnter()
 
-    local function onTouchBegan(touch, event)
-        if not self:isPointInTopHalfAreaOfScreen(touch:getLocation()) then
+    local function onTouchBegan(event)
+        if not self:isPointInTopHalfAreaOfScreen(event:getWorldPoint()) then
             return false
         end
         local target = event:getCurrentTarget()
         assert(target:getTag() == TAG_BLUE_SPRITE, "Yellow blocks shouldn't response event.")
-        if self:isPointInNode(touch:getLocation(), target) then
+        if self:isPointInNode(event:getWorldPoint(), target) then
             target:setOpacity(180)
             return true
         end
@@ -1144,54 +1138,53 @@ function StopPropagationTest:onEnter()
         return false
     end
 
-    local function onTouchEnded(touch, event)
+    local function onTouchEnded(event)
         local target = event:getCurrentTarget()
         target:setOpacity(255)
     end
 
-    local touchOneByOneListener = ax.EventListenerTouchOneByOne:create()
-    touchOneByOneListener:setSwallowTouches(true)
-    touchOneByOneListener:registerScriptHandler(onTouchBegan,ax.Handler.EVENT_TOUCH_BEGAN )
-    touchOneByOneListener:registerScriptHandler(onTouchEnded,ax.Handler.EVENT_TOUCH_ENDED )
+    local touchOneByOneListener = ax.PointerEventListener:create()
+    touchOneByOneListener.onPointerDown = onTouchBegan
+    touchOneByOneListener.onPointerUp = onTouchEnded
 
-    local function onTouchesBegan(touches, event)
-        if self:isPointInTopHalfAreaOfScreen(touches[1]:getLocation()) then
+    local function onTouchesBegan(event)
+        if self:isPointInTopHalfAreaOfScreen(event:getWorldPoint()) then
             return
         end
         local target = event:getCurrentTarget()
         assert(target:getTag() == TAG_BLUE_SPRITE2, "Yellow blocks shouldn't response event.")
 
-        if self:isPointInNode(touches[1]:getLocation(), target) then
+        if self:isPointInNode(event:getWorldPoint(), target) then
             target:setOpacity(180)
         end
         event:stopPropagation()
     end
 
-    local function onTouchesEnd(touches, event)
-        if self:isPointInTopHalfAreaOfScreen(touches[1]:getLocation()) then
+    local function onTouchesEnd(event)
+        if self:isPointInTopHalfAreaOfScreen(event:getWorldPoint()) then
             return
         end
         local target = event:getCurrentTarget()
         assert(target:getTag() == TAG_BLUE_SPRITE2, "Yellow blocks shouldn't response event.")
 
-        if self:isPointInNode(touches[1]:getLocation(), target) then
+        if self:isPointInNode(event:getWorldPoint(), target) then
             target:setOpacity(255)
         end
         event:stopPropagation()
     end
 
-    local touchAllAtOnceListener = ax.EventListenerTouchAllAtOnce:create()
-    touchAllAtOnceListener:registerScriptHandler(onTouchesBegan,ax.Handler.EVENT_TOUCHES_BEGAN )
-    touchAllAtOnceListener:registerScriptHandler(onTouchesEnd,ax.Handler.EVENT_TOUCHES_ENDED )
+    local touchAllAtOnceListener = ax.PointerEventListener:create()
+    touchAllAtOnceListener.onPointerDown = onTouchesBegan
+    touchAllAtOnceListener.onPointerUp = onTouchesEnd
 
-    local function onKeyPressed(key, event)
+    local function onKeyPressed(event)
         local target = event:getCurrentTarget()
         assert(target:getTag() == TAG_BLUE_SPRITE or target:getTag() == TAG_BLUE_SPRITE2, "Yellow blocks shouldn't response event.")
         event:stopPropagation()
     end
 
-    local keyboardEventListener = ax.EventListenerKeyboard:create()
-    keyboardEventListener:registerScriptHandler(onKeyPressed, ax.Handler.EVENT_KEYBOARD_PRESSED )
+    local keyboardEventListener = ax.KeyboardEventListener:create()
+    keyboardEventListener.onKeyPressed = onKeyPressed
 
     local eventDispatcher = self:getEventDispatcher()
 
@@ -1266,7 +1259,7 @@ function StopPropagationTest.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
 
     return layer
 end
@@ -1274,10 +1267,10 @@ end
 local PauseResumeTargetTest = class("PauseResumeTargetTest",EventDispatcherTestDemo)
 
 function PauseResumeTargetTest.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, PauseResumeTargetTest)
     return target
@@ -1354,7 +1347,7 @@ function PauseResumeTargetTest.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
 
     return layer
 end
@@ -1363,10 +1356,10 @@ local Issue4129Test = class("Issue4129Test",EventDispatcherTestDemo)
 Issue4129Test._customListener = nil
 
 function Issue4129Test.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, Issue4129Test)
     return target
@@ -1388,7 +1381,7 @@ function Issue4129Test:onEnter()
         bugFixed = true
     end
 
-    self._customListener = ax.EventListenerCustom:create("event_come_to_background",eventCustomListener)
+    self._customListener = ax.CustomEventListener:create("event_come_to_background",eventCustomListener)
     eventDispatcher:addEventListenerWithFixedPriority(self._customListener, 1)
 
     local function removeAllTouch(tag, sender)
@@ -1412,7 +1405,7 @@ function Issue4129Test:onEnter()
         self:addChild(menu2)
 
         --Simulate to dispatch 'come to background' event
-        local event = ax.EventCustom:new("event_come_to_background")
+        local event = ax.CustomEvent:new("event_come_to_background")
         eventDispatcher:dispatchEvent(event)
     end
 
@@ -1447,7 +1440,7 @@ function Issue4129Test.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
 
     return layer
 end
@@ -1456,10 +1449,10 @@ local Issue4160Test = class("Issue4160Test",EventDispatcherTestDemo)
 Issue4160Test._customListener = nil
 
 function Issue4160Test.extend(target)
-    local t = tolua.getpeer(target)
+    local t = axlua.getpeer(target)
     if not t then
         t = {}
-        tolua.setpeer(target, t)
+        axlua.setpeer(target, t)
     end
     setmetatable(t, Issue4160Test)
     return target
@@ -1506,7 +1499,7 @@ function Issue4160Test.create()
 
     layer:createMenu()
     layer:creatTitleAndSubTitle(curLayerIdx)
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
 
     return layer
 end

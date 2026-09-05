@@ -197,7 +197,7 @@ ax.UNIFORM_SAMPLER_S    = 'AX_Texture0'
 ax.UNIFORM_SIN_TIME_S   = 'AX_SinTime'
 ax.UNIFORM_TIME_S   = 'AX_Time'
 
--- refer to: ApplicationBase.h: enum class Platform
+-- refer to: ApplicationCore.h: enum class Platform
 ax.PLATFORM_UNKNOWN   = 0
 ax.PLATFORM_WIN32     = 1
 ax.PLATFORM_WINUWP    = 2
@@ -219,26 +219,27 @@ ax.PLATFORM_IPAD       = ax.PLATFORM_IOS
 ax.PLATFORM_UWP        = ax.PLATFORM_WINUWP
 ax.PLATFORM_WINRT      = ax.PLATFORM_WINUWP
 
-ax.LANGUAGE_ENGLISH    = 0
-ax.LANGUAGE_CHINESE    = 1
-ax.LANGUAGE_FRENCH     = 2
-ax.LANGUAGE_ITALIAN    = 3
-ax.LANGUAGE_GERMAN     = 4
-ax.LANGUAGE_SPANISH    = 5
-ax.LANGUAGE_DUTCH      = 6
-ax.LANGUAGE_RUSSIAN    = 7
-ax.LANGUAGE_KOREAN     = 8
-ax.LANGUAGE_JAPANESE   = 9
-ax.LANGUAGE_HUNGARIAN  = 10
-ax.LANGUAGE_PORTUGUESE = 11
-ax.LANGUAGE_ARABIC     = 12
-ax.LANGUAGE_NORWEGIAN  = 13
-ax.LANGUAGE_POLISH     = 14
-ax.LANGUAGE_TURKISH    = 15
-ax.LANGUAGE_UKRAINIAN  = 16
-ax.LANGUAGE_ROMANIAN   = 17
-ax.LANGUAGE_BULGARIAN  = 18
-ax.LANGUAGE_BELARUSIAN = 19
+ax.LANGUAGE_ENGLISH             = 0
+ax.LANGUAGE_CHINESE             = 1
+ax.LANGUAGE_CHINESE_TRADITIONAL = 2
+ax.LANGUAGE_FRENCH              = 3
+ax.LANGUAGE_ITALIAN             = 4
+ax.LANGUAGE_GERMAN              = 5
+ax.LANGUAGE_SPANISH             = 6
+ax.LANGUAGE_DUTCH               = 7
+ax.LANGUAGE_RUSSIAN             = 8
+ax.LANGUAGE_KOREAN              = 9
+ax.LANGUAGE_JAPANESE            = 10
+ax.LANGUAGE_HUNGARIAN           = 11
+ax.LANGUAGE_PORTUGUESE          = 12
+ax.LANGUAGE_ARABIC              = 13
+ax.LANGUAGE_NORWEGIAN           = 14
+ax.LANGUAGE_POLISH              = 15
+ax.LANGUAGE_TURKISH             = 16
+ax.LANGUAGE_UKRAINIAN           = 17
+ax.LANGUAGE_ROMANIAN            = 18
+ax.LANGUAGE_BULGARIAN           = 19
+ax.LANGUAGE_BELARUSIAN          = 20
 
 ax.NODE_ON_ENTER       = 0
 ax.NODE_ON_EXIT        = 1
@@ -291,6 +292,10 @@ ax.Handler.EVENT_TOUCH_BEGAN      = 40
 ax.Handler.EVENT_TOUCH_MOVED      = 41
 ax.Handler.EVENT_TOUCH_ENDED      = 42
 ax.Handler.EVENT_TOUCH_CANCELLED  = 43
+ax.Handler.EVENT_POINTER_DOWN     = ax.Handler.EVENT_TOUCH_BEGAN
+ax.Handler.EVENT_POINTER_MOVE     = ax.Handler.EVENT_TOUCH_MOVED
+ax.Handler.EVENT_POINTER_UP       = ax.Handler.EVENT_TOUCH_ENDED
+ax.Handler.EVENT_POINTER_CANCELLED = ax.Handler.EVENT_TOUCH_CANCELLED
 ax.Handler.EVENT_TOUCHES_BEGAN    = 44
 ax.Handler.EVENT_TOUCHES_MOVED    = 45
 ax.Handler.EVENT_TOUCHES_ENDED    = 46
@@ -299,25 +304,38 @@ ax.Handler.EVENT_MOUSE_DOWN       = 48
 ax.Handler.EVENT_MOUSE_UP         = 49
 ax.Handler.EVENT_MOUSE_MOVE       = 50
 ax.Handler.EVENT_MOUSE_SCROLL     = 51
+ax.Handler.EVENT_POINTER_SCROLL   = ax.Handler.EVENT_MOUSE_SCROLL
 ax.Handler.EVENT_SPINE            = 52
-ax.Handler.EVENT_PHYSICS_CONTACT_BEGIN = 53
-ax.Handler.EVENT_PHYSICS_CONTACT_PRESOLVE = 54
-ax.Handler.EVENT_PHYSICS_CONTACT_POSTSOLVE = 55
-ax.Handler.EVENT_PHYSICS_CONTACT_SEPARATE = 56
-ax.Handler.EVENT_FOCUS = 57
-ax.Handler.EVENT_CONTROLLER_CONNECTED = 58
-ax.Handler.EVENT_CONTROLLER_DISCONNECTED = 59
-ax.Handler.EVENT_CONTROLLER_KEYDOWN = 60
-ax.Handler.EVENT_CONTROLLER_KEYUP = 61
-ax.Handler.EVENT_CONTROLLER_KEYREPEAT = 62
-ax.Handler.EVENT_CONTROLLER_AXIS = 63
-ax.Handler.EVENT_SPINE_ANIMATION_START = 64
-ax.Handler.EVENT_SPINE_ANIMATION_END = 65
-ax.Handler.EVENT_SPINE_ANIMATION_COMPLETE = 66
-ax.Handler.EVENT_SPINE_ANIMATION_EVENT = 67
 
+ax.Handler.EVENT_PHYSICS_2D_CONTACT_BEGIN   = 53
+ax.Handler.EVENT_PHYSICS_2D_CONTACT_END     = 54
+ax.Handler.EVENT_PHYSICS_2D_HIT             = 55
+ax.Handler.EVENT_PHYSICS_2D_SENSOR_BEGIN    = 56
+ax.Handler.EVENT_PHYSICS_2D_SENSOR_END      = 57
+
+ax.Handler.EVENT_PHYSICS_3D_CONTACT_BEGIN   = 58
+ax.Handler.EVENT_PHYSICS_3D_CONTACT_END     = 59
+ax.Handler.EVENT_PHYSICS_3D_HIT             = 60
+ax.Handler.EVENT_PHYSICS_3D_SENSOR_BEGIN    = 61
+ax.Handler.EVENT_PHYSICS_3D_SENSOR_END      = 62
+
+ax.Handler.EVENT_FOCUS                      = 63
+ax.Handler.EVENT_CONTROLLER_CONNECTED       = 64
+ax.Handler.EVENT_CONTROLLER_DISCONNECTED    = 65
+ax.Handler.EVENT_CONTROLLER_KEYDOWN         = 66
+ax.Handler.EVENT_CONTROLLER_KEYUP           = 67
+ax.Handler.EVENT_CONTROLLER_KEYREPEAT       = 68
+ax.Handler.EVENT_CONTROLLER_AXIS            = 69
+
+ax.Handler.EVENT_SPINE_ANIMATION_START      = 70
+ax.Handler.EVENT_SPINE_ANIMATION_INTERRUPT  = 71
+ax.Handler.EVENT_SPINE_ANIMATION_END        = 72
+ax.Handler.EVENT_SPINE_ANIMATION_DISPOSE    = 73
+ax.Handler.EVENT_SPINE_ANIMATION_COMPLETE   = 74
+ax.Handler.EVENT_SPINE_ANIMATION_EVENT      = 75
 
 ax.EVENT_UNKNOWN = 0
+ax.EVENT_POINTER            = 1
 ax.EVENT_TOUCH_ONE_BY_ONE      = 1
 ax.EVENT_TOUCH_ALL_AT_ONCE     = 2
 ax.EVENT_KEYBOARD              = 3
@@ -325,12 +343,22 @@ ax.EVENT_MOUSE                 = 4
 ax.EVENT_ACCELERATION          = 5
 ax.EVENT_CUSTOM                = 6
 
-ax.PHYSICSSHAPE_MATERIAL_DEFAULT = {density = 0.0, restitution = 0.5, friction = 0.5}
-ax.PHYSICSBODY_MATERIAL_DEFAULT = {density = 0.1, restitution = 0.5, friction = 0.5}
+ax.PHYSICS_MATERIAL_2D_DEFAULT = {density = 0.1, restitution = 0.5, friction = 0.5}
 ax.GLYPHCOLLECTION_DYNAMIC = 0
 ax.GLYPHCOLLECTION_NEHE    = 1
 ax.GLYPHCOLLECTION_ASCII   = 2
 ax.GLYPHCOLLECTION_CUSTOM  = 3
+
+ax.physics2d = ax.physics2d or {}
+
+ax.physics2d.CollisionEventBits = {
+    None     = 0,
+    PreSolve = 1,
+    Hit      = 2,
+    Contact  = 4,
+    Sensor   = 8,
+    AllBits  = 15
+}
 
 ax.ResolutionPolicy =
 {
@@ -636,7 +664,6 @@ ax.MATRIX_STACK_TYPE =
 {
     MODELVIEW = 0,
     PROJECTION = 1,
-    TEXTURE = 2,
 }
 
 ax.LightType =
@@ -673,4 +700,3 @@ ax.BLUE = ax.color32(0,0,255)
 ax.BLACK = ax.color32(0,0,0)
 ax.WHITE = ax.color32(255,255,255)
 ax.YELLOW = ax.color32(255,255,0)
-

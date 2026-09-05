@@ -144,7 +144,7 @@ public:
 
     virtual void update(float dt) override;
     virtual void setPosition(const ax::Vec2& newPosition) override;
-    virtual void draw(ax::Renderer* renderer, const ax::Mat4& transform, uint32_t flags) override;
+    virtual void draw(const ax::SceneRenderState& state, const ax::Mat4& transform, uint32_t flags) override;
 
 protected:
     ShaderNode();
@@ -215,6 +215,28 @@ public:
     void changeTexture(ax::Object*);
     int _changedTextureId;
     ax::Sprite* _sprite;
+
+    virtual std::string title() const override;
+    virtual std::string subtitle() const override;
+    virtual bool init() override;
+};
+
+class ShaderCustomSampler : public ShaderTestDemo
+{
+public:
+    CREATE_FUNC(ShaderCustomSampler);
+    ShaderCustomSampler();
+
+    virtual std::string title() const override;
+    virtual std::string subtitle() const override;
+    virtual bool init() override;
+};
+
+class ShaderMultiCustomSampler : public ShaderTestDemo
+{
+public:
+    CREATE_FUNC(ShaderMultiCustomSampler);
+    ShaderMultiCustomSampler();
 
     virtual std::string title() const override;
     virtual std::string subtitle() const override;

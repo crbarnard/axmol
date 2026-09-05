@@ -6,6 +6,7 @@ option(AX_WITH_WEBP "Build with internal webp support" ON)
 option(AX_WITH_CLIPPER2 "Build with internal Clipper2 support" ON)
 option(AX_WITH_POLY2TRI "Build with internal poly2tri support" ON)
 option(AX_WITH_FASTLZ "Build with internal fastlz support" ON)
+option(AX_WITH_TRACY "Build with internal Tracy support" ON)
 
 option(AX_WITH_CURL "Build with internal curl support" ON)
 option(AX_WITH_UNZIP "Build with internal unzip support" ON)
@@ -110,21 +111,7 @@ function(ax_add_3rd source_dir)
       add_dependencies(3rdparty ${tgt})
     endif()
 
-    if(NOT (tgt_type STREQUAL "INTERFACE_LIBRARY"))
-      set_target_properties(${tgt} PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib" # Windows/Linux/macOS, .a, .lib
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin" # Windows .dll, .exe
-        FOLDER "3rdparty"
-      )
-
-      get_target_property(_apple_framework ${tgt} MACOSX_FRAMEWORK_NAME)
-      if(NOT _apple_framework)
-        set_target_properties(${tgt} PROPERTIES
-          LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib" # .so, .dylib, windows imported .lib
-        )
-      endif()
-    endif()
-
+    ax_configure_target_output(${tgt} ${tgt_type} "3rdparty")
   endforeach()
 endfunction()
 
@@ -139,7 +126,10 @@ if(ANDROID)
   )
 endif()
 
-ax_add_3rd(fmt)
+ax_add_3rd(fmt OPTIONS "FMT_MODULE OFF")
+if (TARGET fmt-c)
+  set_target_properties(fmt-c PROPERTIES FOLDER "3rdparty")
+endif()
 
 # bellow are non header only libs
 
@@ -161,7 +151,7 @@ endif()
 # libpng
 ax_add_3rd(png)
 
-if(AX_ENABLE_PHYSICS)
+if(AX_ENABLE_PHYSICS_2D)
   set(box2d_opts "BOX2D_BUILD_UNIT_TESTS OFF" "BOX2D_BUILD_TESTBED OFF")
   ax_add_3rd(box2d OPTIONS ${box2d_opts})
 endif()
@@ -185,8 +175,35 @@ if(AX_ENABLE_NAVMESH)
   ax_add_3rd(recast)
 endif()
 
-if(AX_ENABLE_3D_PHYSICS)
-  ax_add_3rd(bullet)
+if(AX_ENABLE_PHYSICS_3D)
+  set(jolt_opts "DEBUG_RENDERER_IN_DISTRIBUTION ON")
+
+  set(USE_SSE4_1_OPT "USE_SSE4_1 OFF")
+  set(USE_SSE4_2_OPT "USE_SSE4_2 OFF")
+  set(USE_AVX_OPT "USE_AVX OFF")
+  set(USE_AVX2_OPT "USE_AVX2 OFF")
+  set(USE_AVX512_OPT "USE_AVX512 OFF")
+
+  if (AX_ISA_LEVEL GREATER_EQUAL 2)
+    set(USE_SSE4_1_OPT "USE_SSE4_1 ON")
+  endif()
+  if (AX_ISA_LEVEL GREATER_EQUAL 3)
+    set(USE_SSE4_2_OPT "USE_SSE4_2 ON")
+  endif()
+  if (AX_ISA_LEVEL GREATER_EQUAL 4)
+    set(USE_AVX_OPT "USE_AVX ON")
+    set(USE_AVX2_OPT "USE_AVX2 ON")
+    set(USE_AVX512_OPT "USE_AVX2 ON")
+  endif()
+
+  list(APPEND jolt_opts
+    ${USE_SSE4_1_OPT}
+    ${USE_SSE4_2_OPT}
+    ${USE_AVX_OPT}
+    ${USE_AVX2_OPT}
+    ${USE_AVX512_OPT}
+  )
+  ax_add_3rd(jolt TARGETS Jolt OPTIONS ${jolt_opts})
 endif()
 
 if(AX_WITH_JPEG AND NOT WINRT AND NOT EMSCRIPTEN)
@@ -224,10 +241,9 @@ endif()
 # use lua/js specific libs by property to prevent conflict
 if(AX_ENABLE_EXT_LUA)
   add_subdirectory(lua/${AX_LUA_ENGINE})
-  add_subdirectory(lua/tolua)
   add_subdirectory(lua/lua-cjson)
   set_property(TARGET 3rdparty APPEND PROPERTY
-    AX_LUA_DEPEND ${AX_LUA_ENGINE} tolua lua-cjson
+    AX_LUA_DEPEND ${AX_LUA_ENGINE} lua-cjson
   )
 
   if(AX_USE_LUAJIT)
@@ -243,6 +259,7 @@ if(AX_ENABLE_AUDIO)
   # The openal-soft(LGPL 2.1)
   if(NOT EMSCRIPTEN)
     set(alsoft_opts
+      "ALSOFT_ENABLE_MODULES OFF"
       "ALSOFT_DLOPEN OFF"
       "ALSOFT_UTILS OFF"
       "ALSOFT_EXAMPLES OFF"
@@ -265,7 +282,8 @@ if(AX_ENABLE_AUDIO)
         set(OBOE_SOURCE "${oboe_SOURCE_DIR}" CACHE STRING "Source directory for Oboe." FORCE)
       endif()
 
-      list(APPEND alsoft_opts "ALSOFT_RTKIT OFF"
+      list(APPEND alsoft_opts
+        "ALSOFT_RTKIT OFF"
         "ALSOFT_BACKEND_PIPEWIRE OFF"
         "ALSOFT_BACKEND_PULSEAUDIO OFF"
         "ALSOFT_BACKEND_ALSA OFF"
@@ -275,22 +293,17 @@ if(AX_ENABLE_AUDIO)
         "ALSOFT_BACKEND_JACK OFF"
         "ALSOFT_BACKEND_PORTAUDIO OFF"
         "ALSOFT_BACKEND_SDL2 OFF"
-        )
-      set(ALSOFT_RTKIT OFF CACHE BOOL "Enable RTKit support" FORCE)
-    elseif(WINDOWS)
-      list(APPEND alsoft_opts "ALSOFT_BACKEND_WASAPI ON" "ALSOFT_BACKEND_WAVE OFF" "ALSOFT_BACKEND_DSOUND OFF" "ALSOFT_BACKEND_WINMM OFF")
-    elseif(WASM)
-      list(APPEND alsoft_opts "ALSOFT_BACKEND_SDL2 ON" "ALSOFT_REQUIRE_SDL2 ON")
-      find_program(embuilder_script embuilder.ps1)
-      message(STATUS "Building wasm sdl2 port ...")
-      execute_process(
-        COMMAND ${PWSH_PROG} ${embuilder_script} build sdl2
-        WORKING_DIRECTORY ${_AX_ROOT}
-        RESULT_VARIABLE _ret
-        OUTPUT_VARIABLE _out
-        ERROR_VARIABLE  _err
       )
-      message(STATUS "Build wasm sdl2 port done: ${_ret}")
+    elseif(WINDOWS)
+      list(APPEND alsoft_opts
+        "ALSOFT_RTKIT OFF"
+        "ALSOFT_BACKEND_WASAPI ON"
+        "ALSOFT_BACKEND_WAVE OFF"
+        "ALSOFT_BACKEND_DSOUND OFF"
+        "ALSOFT_BACKEND_WINMM OFF"
+      )
+    elseif(APPLE)
+      list(APPEND alsoft_opts "ALSOFT_RTKIT OFF")
     endif()
 
     if(WINRT)
@@ -300,6 +313,7 @@ if(AX_ENABLE_AUDIO)
     ax_add_3rd(openal EXCLUDE_FROM_ALL TARGETS OpenAL;alsoft.common OPTIONS ${alsoft_opts})
 
     set_target_properties(OpenAL alsoft.common PROPERTIES CXX_STANDARD ${_AX_CXX_STD})
+    set_target_properties(alsoft.default_hrtf_data PROPERTIES FOLDER "3rdparty")
 
     if(AX_USE_ALSOFT_STATIC)
       target_compile_definitions(3rdparty INTERFACE AL_LIBTYPE_STATIC=1)
@@ -330,10 +344,13 @@ if((WINDOWS AND NOT WINRT) OR MACOSX OR LINUX)
     list(APPEND _glfw_options "GLFW_BUILD_X11 ON")
     if(AX_ENABLE_WAYLAND)
       list(APPEND _glfw_options "GLFW_BUILD_WAYLAND ON")
+    else()
+      list(APPEND _glfw_options "GLFW_BUILD_WAYLAND OFF")
     endif()
   endif()
   ax_add_3rd(glfw OPTIONS ${_glfw_options})
   set_target_properties(glfw PROPERTIES OUTPUT_NAME glfw)
+  set_target_properties(update_mappings PROPERTIES FOLDER "3rdparty")
 
   if(NOT WINDOWS)
     target_link_libraries(3rdparty INTERFACE pthread)
@@ -393,11 +410,46 @@ if(WIN32 AND AX_GLES_PROFILE)
   endif()
 endif()
 
+# tracy
+if(AX_PROFILER_BACKEND STREQUAL "TRACY")
+  set(AX_WITH_TRACY ON CACHE BOOL "" FORCE)
+else()
+  set(AX_WITH_TRACY OFF CACHE BOOL "" FORCE)
+endif()
+
+if(AX_WITH_TRACY)
+  _1kfetch(tracy)
+  set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
+  set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
+  ax_add_3rd(${tracy_SOURCE_DIR} TARGETS TracyClient)
+endif()
+
+# SVG
+if(AX_ENABLE_EXT_SVG)
+  _1kfetch(lunasvg)
+  ax_add_3rd(${lunasvg_SOURCE_DIR}
+    TARGETS lunasvg
+    OPTIONS
+      "USE_SYSTEM_PLUTOVG OFF"
+      "LUNASVG_BUILD_EXAMPLES OFF"
+  )
+  if(TARGET plutovg)
+    set_property(TARGET plutovg PROPERTY AX_SKIP_SDK_EXPORT ON)
+  endif()
+endif()
+
 # yasio
 ax_add_3rd(yasio)
 
 # simdjson
 ax_add_3rd(simdjson)
+
+# openxr
+if (AX_ENABLE_OPENXR)
+  _1kfetch(openxr)
+  ax_add_3rd(${openxr_SOURCE_DIR} TARGETS openxr_loader)
+  set_target_properties(openxr_loader PROPERTIES DEBUG_POSTFIX "")
+endif()
 
 if(ANDROID)
   function(config_android_shared_libs package_name target_folder)

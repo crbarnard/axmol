@@ -28,8 +28,8 @@ THE SOFTWARE.
 #pragma once
 
 #include "axmol/renderer/CustomCommand.h"
-#include "axmol/2d/Node.h"
-#include "axmol/renderer/PipelineDesc.h"
+#include "axmol/scene/Node.h"
+#include "axmol/rhi/PipelineDesc.h"
 
 #include "axmol/tlx/vector.hpp"
 
@@ -151,7 +151,7 @@ public:
     Vec2 getBarChangeRate() const { return _barChangeRate; }
 
     // Overrides
-    void draw(Renderer* renderer, const Mat4& transform, uint32_t flags) override;
+    void draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags) override;
     void setAnchorPoint(const Vec2& anchorPoint) override;
     void setColor(const Color32& color) override;
     const Color32& getColor() const override;

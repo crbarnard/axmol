@@ -24,7 +24,7 @@
  ****************************************************************************/
 #pragma once
 
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/renderer/GroupCommand.h"
 #include "axmol/renderer/CustomCommand.h"
 
@@ -32,6 +32,8 @@ namespace ax
 {
 
 class GridBase;
+class Camera;
+class TransitionFadeTR;
 /**
  *  @addtogroup _2d
  *  @{
@@ -86,21 +88,32 @@ public:
     const Rect& getGridRect() const { return _gridRect; }
 
     // overrides
-    void visit(Renderer* renderer, const Mat4& parentTransform, uint32_t parentFlags) override;
+    void visit(const SceneRenderState& state, const Mat4& parentTransform, uint32_t parentFlags) override;
 
     NodeGrid();
     virtual ~NodeGrid();
 
 protected:
+    friend class TransitionFadeTR;
+
+    /** Internal transition hook for VR: align grid blit geometry with the
+     *  visiting capture camera instead of leaving tile edges head-locked.
+     */
+    void setProjectGridBlitToVisitingCamera(bool enabled) { _projectGridBlitToVisitingCamera = enabled; }
+
     void onGridBeginDraw();
-    void onGridEndDraw();
+    void onGridEndDraw(const SceneRenderState& state);
+    Camera* getGridCamera(const Camera* currentCamera);
 
     Node* _gridTarget   = nullptr;
     GridBase* _nodeGrid = nullptr;
+    Camera* _gridCamera = nullptr;
     CustomCommand _gridBeginCommand;
     CustomCommand _gridEndCommand;
 
-    Rect _gridRect = Rect::ZERO;
+    Rect _gridRect = Rect::zero;
+
+    bool _projectGridBlitToVisitingCamera = false;
 
 private:
     AX_DISALLOW_COPY_AND_ASSIGN(NodeGrid);

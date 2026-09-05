@@ -48,7 +48,7 @@ NS_AX_EXT_BEGIN
  * @{
  */
 
-class AX_EX_DLL ControlColourPicker : public Control
+class AX_EXT_API ControlColourPicker : public Control
 {
 public:
     static ControlColourPicker* create();
@@ -73,7 +73,7 @@ public:
 protected:
     void updateControlPicker();
     void updateHueAndControlPicker();
-    bool onTouchBegan(Touch* touch, Event* pEvent) override;
+    bool onPointerDown(PointerEvent* event) override;
 
     HSV _hsv;
     AX_SYNTHESIZE_RETAIN(ControlSaturationBrightnessPicker*, _colourPicker, colourPicker)

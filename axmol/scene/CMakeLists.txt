@@ -1,0 +1,20 @@
+set(_AX_SCENE_HEADER
+  scene/Camera.h
+  scene/CameraBackgroundBrush.h
+  scene/ComponentContainer.h
+  scene/Component.h
+  scene/Node.h
+  scene/Scene.h
+  scene/SceneCompositor.h
+)
+
+set(_AX_SCENE_SRC
+  scene/Camera.cpp
+  scene/CameraBackgroundBrush.cpp
+  scene/ComponentContainer.cpp
+  scene/Component.cpp
+  scene/Node.cpp
+  scene/Scene.cpp
+  scene/SceneCompositor.cpp
+)
+

@@ -37,7 +37,7 @@ require("axmol.framework.extends.NodeEx")
 require("axmol.framework.extends.SpriteEx")
 require("axmol.framework.extends.MenuEx")
 
-if ccui then
+if axui ~= nil then
 require("axmol.framework.extends.UIWidget")
 require("axmol.framework.extends.UICheckBox")
 require("axmol.framework.extends.UIEditBox")
@@ -45,7 +45,7 @@ require("axmol.framework.extends.UIListView")
 require("axmol.framework.extends.UIPageView")
 require("axmol.framework.extends.UIScrollView")
 require("axmol.framework.extends.UISlider")
-require("axmol.framework.extends.UITextField")
+require("axmol.framework.extends.UIInputField")
 end
 
 require("axmol.framework.package_support")

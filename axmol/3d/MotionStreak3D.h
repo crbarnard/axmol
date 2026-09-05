@@ -26,7 +26,7 @@ THE SOFTWARE.
 #pragma once
 
 #include "axmol/base/Protocols.h"
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/renderer/CustomCommand.h"
 #include "axmol/renderer/CallbackCommand.h"
 
@@ -110,7 +110,7 @@ public:
     void setPosition(float x, float y) override;
     void setPosition3D(const Vec3& position) override;
     void setRotation3D(const Vec3& rotation) override;
-    void setRotationQuat(const Quaternion& quat) override;
+    void setRotationQuat(const Quat& quat) override;
 
     const Vec2& getPosition() const override;
     void getPosition(float* x, float* y) const override;
@@ -122,7 +122,7 @@ public:
     /**
      * @lua NA
      */
-    void draw(Renderer* renderer, const Mat4& transform, uint32_t flags) override;
+    void draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags) override;
     /**
      * @lua NA
      */

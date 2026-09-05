@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/math/Math.h"
 #include <vector>
 #include <map>
@@ -42,26 +42,26 @@ class Particle3DEmitter;
 class Particle3DAffector;
 class Particle3DRender;
 
-struct AX_EX_DLL Particle3D
+struct AX_EXT_API Particle3D
 {
     Particle3D();
     virtual ~Particle3D();
     // property of particles
-    Vec3 position;           // position
-    Quaternion orientation;  //  Orientation of the particle.
-    Color color;             // particle color
-    Vec2 lb_uv;              // left bottom uv
-    Vec2 rt_uv;              // right top uv
-    float width;             // Own width
-    float height;            // Own height
-    float depth;             // Own depth
+    Vec3 position;     // position
+    Quat orientation;  //  Orientation of the particle.
+    Color color;       // particle color
+    Vec2 lb_uv;        // left bottom uv
+    Vec2 rt_uv;        // right top uv
+    float width;       // Own width
+    float height;      // Own height
+    float depth;       // Own depth
 
     // user defined property
     std::unordered_map<std::string, void*> userDefs;
 };
 
 template <typename T>
-class AX_EX_DLL DataPool
+class AX_EXT_API DataPool
 {
 public:
     typedef typename std::list<T*> PoolList;
@@ -157,7 +157,7 @@ private:
 
 typedef DataPool<Particle3D> ParticlePool;
 
-class AX_EX_DLL ParticleSystem3D : public Node, public BlendProtocol
+class AX_EXT_API ParticleSystem3D : public Node, public BlendProtocol
 {
 public:
     enum class State
@@ -175,7 +175,7 @@ public:
     /**
      * override function
      */
-    void draw(Renderer* renderer, const Mat4& transform, uint32_t flags) override;
+    void draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags) override;
 
     /**
      * override function

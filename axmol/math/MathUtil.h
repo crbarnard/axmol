@@ -23,12 +23,9 @@
 
 #pragma once
 
+#include <cmath>
+#include "axmol/base/Types.h"
 #include "axmol/math/MathBase.h"
-
-namespace ax
-{
-struct V3F_T2F_C4B;
-}
 
 /**
  * @addtogroup base
@@ -37,7 +34,11 @@ struct V3F_T2F_C4B;
 
 NS_AX_MATH_BEGIN
 
+class Mat4;
+class Vec3;
 class Vec4;
+struct V3F_T2F_C4B;
+class Renderer;
 
 /**
  * Defines a math utility class.
@@ -92,6 +93,18 @@ public:
      */
     static float lerp(float from, float to, float alpha);
 
+    static constexpr float radians(float degrees)
+    {
+        return degrees * 0.01745329252f;  // PI / 180
+    }
+
+    static constexpr float degrees(float radians)
+    {
+        return radians * 57.29577951f;  // PI * 180
+    }
+
+    static inline bool fuzzyEquals(float a, float b, float eps = 1e-5) { return std::abs(a - b) <= eps; }
+
 private:
     // Indicates that if neon is enabled
     static bool isNeon32Enabled();
@@ -117,8 +130,9 @@ private:
 
     static void crossVec3(const float* v1, const float* v2, float* dst);
 
-    static void transformVertices(V3F_T2F_C4B* dst, const V3F_T2F_C4B* src, size_t count, const Mat4& transform);
     static void transformIndices(uint16_t* dst, const uint16_t* src, size_t count, uint16_t offset);
+
+    static void transformVertices(V3F_T2F_C4B* dst, const V3F_T2F_C4B* src, size_t count, const Mat4& transform);
 };
 
 NS_AX_MATH_END

@@ -30,7 +30,7 @@
 #include "axmol/3d/MeshVertexIndexData.h"
 #include "axmol/3d/VertexInputBinding.h"
 #include "axmol/2d/Light.h"
-#include "axmol/2d/Scene.h"
+#include "axmol/scene/Scene.h"
 #include "axmol/base/EventDispatcher.h"
 #include "axmol/base/Director.h"
 #include "axmol/base/Environment.h"
@@ -74,15 +74,15 @@ void Mesh::resetLightUniformValues()
     constexpr int maxPointLight = AX_MAX_POINT_LIGHT;
     constexpr int maxSpotLight  = AX_MAX_SPOT_LIGHT;
 
-    _dirLightUniformColorValues.assign(maxDirLight, Vec3::ZERO);
-    _dirLightUniformDirValues.assign(maxDirLight, Vec3::ZERO);
+    _dirLightUniformColorValues.assign(maxDirLight, Vec3::zero);
+    _dirLightUniformDirValues.assign(maxDirLight, Vec3::zero);
 
-    _pointLightUniformColorValues.assign(maxPointLight, Vec3::ZERO);
-    _pointLightUniformPositionValues.assign(maxPointLight, Vec3::ZERO);
+    _pointLightUniformColorValues.assign(maxPointLight, Vec3::zero);
+    _pointLightUniformPositionValues.assign(maxPointLight, Vec3::zero);
     _pointLightUniformRangeInverseValues.assign(maxPointLight, 0.0f);
 
-    _spotLightUniformColorValues.assign(maxSpotLight, Vec3::ZERO);
-    _spotLightUniformPositionValues.assign(maxSpotLight, Vec3::ZERO);
+    _spotLightUniformColorValues.assign(maxSpotLight, Vec3::zero);
+    _spotLightUniformPositionValues.assign(maxSpotLight, Vec3::zero);
 
     // TODO It's strange that init _spotLightUniformDirValues to zeros will cause no light effects on iPhone6 and
     // iPhone6s, but works well on iPhoneX fix no light effects on iPhone6 and iPhone6s
@@ -173,7 +173,7 @@ rhi::Buffer* Mesh::getVertexBuffer() const
     return _meshIndexData->getVertexBuffer();
 }
 
-bool Mesh::hasVertexAttrib(shaderinfos::VertexKey attrib) const
+bool Mesh::hasVertexAttrib(MeshVertexAttribute attrib) const
 {
     return _meshIndexData->getMeshVertexData()->hasVertexAttrib(attrib);
 }
@@ -203,7 +203,7 @@ Mesh* Mesh::create(const std::vector<float>& positions,
     tlx::pod_vector<MeshVertexAttrib> attribs;
 
     MeshVertexAttrib att;
-    att.type = rhi::VertexFormat::FLOAT3;
+    att.type = rhi::VertexElementType::FLOAT3;
 
     attribs.reserve(3);
 
@@ -212,21 +212,21 @@ Mesh* Mesh::create(const std::vector<float>& positions,
     if (!positions.empty())
     {
         perVertexSizeInFloat += 3;
-        att.vertexAttrib = shaderinfos::VertexKey::VERTEX_ATTRIB_POSITION;
+        att.vertexAttrib = MeshVertexAttribute::POSITION;
         attribs.emplace_back(att);
     }
     if (!normals.empty())
     {
         perVertexSizeInFloat += 3;
-        att.vertexAttrib = shaderinfos::VertexKey::VERTEX_ATTRIB_NORMAL;
+        att.vertexAttrib = MeshVertexAttribute::NORMAL;
         attribs.emplace_back(att);
         hasNormal = 1;
     }
     if (!texs.empty())
     {
         perVertexSizeInFloat += 2;
-        att.type         = rhi::VertexFormat::FLOAT2;
-        att.vertexAttrib = shaderinfos::VertexKey::VERTEX_ATTRIB_TEX_COORD;
+        att.type         = rhi::VertexElementType::FLOAT2;
+        att.vertexAttrib = MeshVertexAttribute::TEXCOORD0;
         attribs.emplace_back(att);
         hasTexCoord = 1;
     }
@@ -402,9 +402,8 @@ void Mesh::setMaterial(Material* material)
                     // AXASSERT(vertexInputs.size() <= attributeCount, "missing attribute data");
                 }
 #endif
-                // TODO
                 auto vertexInputBinding =
-                    VertexInputBinding::spawn(_meshIndexData, pass, &list[i], _instanceCount > 0 && _instancing);
+                    VertexInputBinding::fetch(_meshIndexData, pass, &list[i], _instanceCount > 0 && _instancing);
                 pass->setVertexInputBinding(vertexInputBinding);
                 i += 1;
             }
@@ -427,7 +426,7 @@ Material* Mesh::getMaterial() const
     return _material;
 }
 
-void Mesh::draw(Renderer* renderer,
+void Mesh::draw(const SceneRenderState& state,
                 float globalZOrder,
                 const Mat4& transform,
                 uint32_t flags,
@@ -520,7 +519,7 @@ void Mesh::draw(Renderer* renderer,
 
     for (auto&& command : commands)
     {
-        command.init(globalZ, transform);
+        command.init(globalZ, transform, state.getView());
         command.setSkipBatching(isTransparent);
         command.setTransparent(isTransparent);
         command.set3D(!_material->isForce2DQueue());
@@ -644,7 +643,7 @@ void Mesh::setLightUniforms(Pass* pass, Scene* scene, const Vec4& color, unsigne
 
     auto bindings = pass->getVertexAttributeBinding();
 
-    if (bindings && bindings->hasAttribute(shaderinfos::VertexKey::VERTEX_ATTRIB_NORMAL))
+    if (bindings && bindings->hasAttribute(MeshVertexAttribute::NORMAL))
     {
         resetLightUniformValues();
 

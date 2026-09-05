@@ -1,16 +1,19 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated July 28, 2023. Replaces all prior versions.
+ * Last updated April 5, 2025. Replaces all prior versions.
  *
- * Copyright (c) 2013-2023, Esoteric Software LLC
+ * Copyright (c) 2013-2025, Esoteric Software LLC
+ * Copyright (c) 2019-present Axmol Engine contributors (see AUTHORS.md).
+ *
+ * https://axmol.dev/
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
  * conditions of Section 2 of the Spine Editor License Agreement:
  * http://esotericsoftware.com/spine-editor-license
  *
- * Otherwise, it is permitted to integrate the Spine Runtimes into software or
- * otherwise create derivative works of the Spine Runtimes (collectively,
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
  * "Products"), provided that each user of the Products must obtain their own
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
@@ -23,20 +26,23 @@
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
  * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE
- * SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
+#include <spine/SkeletonBatch.h>
 #include <spine/spine-axmol.h>
+#include "axmol/scene/Camera.h"
 
 #include <algorithm>
-#include <spine/Extension.h>
 
 USING_NS_AX;
 #define INITIAL_SIZE (2000)
 
-#include "axmol/rhi/DriverContext.h"
+#include "axmol/rhi/GraphicsCore.h"
 #include "axmol/renderer/Shaders.h"
+#include "axmol/base/Director.h"
+#include "axmol/base/EventDispatcher.h"
 
 namespace spine {
 
@@ -65,7 +71,7 @@ namespace spine {
 		// callback after drawing is finished so we can clear out the batch state
 		// for the next frame
         _afterDrawListener = Director::getInstance()->getEventDispatcher()->addCustomEventListener(
-                    Director::EVENT_AFTER_DRAW, [this](EventCustom* eventCustom) {
+                    Director::EVENT_AFTER_DRAW, [this](CustomEvent* eventCustom) {
 			this->update(0);
 		});
 	}
@@ -91,7 +97,7 @@ namespace spine {
             currentState         = programState->clone();
             command->_locMVP     = currentState->getUniformLocation(rhi::UNIFORM_NAME_MVP_MATRIX);
             command->_locTexture = currentState->getUniformLocation(rhi::UNIFORM_NAME_TEXTURE);
-            command->setOwnPSVL(currentState, currentState->getVertexLayout(), RenderCommand::ADOPT_FLAG_PS);
+            command->setOwnPSVL(currentState, currentState->getVertexLayout(), ax::RenderCommand::ADOPT_FLAG_PS);
         }
         return currentState;
     }
@@ -147,9 +153,9 @@ namespace spine {
 	}
 
 
-	axmol::TrianglesCommand *SkeletonBatch::addCommand(axmol::Renderer *renderer, float globalOrder, axmol::Texture2D *texture, rhi::ProgramState *programState, axmol::BlendFunc blendType, const axmol::TrianglesCommand::Triangles &triangles, const axmol::Mat4 &mv, uint32_t flags) {
+	axmol::TrianglesCommand *SkeletonBatch::addCommand(const axmol::SceneRenderState &state, float globalOrder, axmol::Texture2D *texture, rhi::ProgramState *programState, axmol::BlendFunc blendType, const axmol::TrianglesCommand::Triangles &triangles, const axmol::Mat4 &mv, uint32_t flags) {
 		SkeletonCommand *command = nextFreeCommand();
-		const axmol::Mat4 &projectionMat = Director::getInstance()->getMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_PROJECTION);
+		const axmol::Mat4 &projectionMat = state.getViewProjectionMatrix();
 
 		if (programState == nullptr)
 			programState = _programState;
@@ -161,8 +167,8 @@ namespace spine {
 		pipelinePS->setUniform(command->_locMVP, projectionMat.m, sizeof(projectionMat.m));
 		pipelinePS->setTexture(command->_locTexture, 0, texture->getRHITexture());
 
-		command->init(globalOrder, texture, blendType, triangles, mv, flags);
-		renderer->addCommand(command);
+		command->init(globalOrder, texture, blendType, triangles, mv, flags, state.getView());
+		state.getRenderer()->addCommand(command);
 		return command;
 	}
 
@@ -188,4 +194,3 @@ namespace spine {
 		return command;
 	}
 }// namespace spine
-

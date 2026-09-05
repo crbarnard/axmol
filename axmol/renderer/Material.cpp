@@ -29,11 +29,12 @@
  - Qt3D: http://qt-project.org/
  ****************************************************************************/
 #include "axmol/renderer/Material.h"
+#include "axmol/renderer/ProgramManager.h"
 #include "axmol/renderer/Technique.h"
 #include "axmol/renderer/Pass.h"
 #include "axmol/renderer/TextureCache.h"
 #include "axmol/renderer/Texture2D.h"
-#include "axmol/rhi/DriverContext.h"
+#include "axmol/rhi/GraphicsCore.h"
 #include "axmol/base/Properties.h"
 #include "axmol/base/Director.h"
 #include "axmol/platform/FileUtils.h"
@@ -483,6 +484,12 @@ void Material::setName(std::string_view name)
 std::string_view Material::getName() const
 {
     return _name;
+}
+
+void Material::enableTransparentDoubleSided()
+{
+    setTransparent(true);
+    getStateBlock().setCullFaceSide(CullFaceSide::NONE);
 }
 
 void Material::setTransparent(bool value)

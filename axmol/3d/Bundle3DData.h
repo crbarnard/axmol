@@ -29,13 +29,13 @@
 #include "axmol/base/Object.h"
 #include "axmol/base/Types.h"
 #include "axmol/math/Math.h"
-#include "axmol/3d/AABB.h"
+#include "axmol/math/AABB.h"
 
 #include <vector>
 #include <map>
 #include <string>
 
-#include "axmol/3d/shaderinfos.h"
+#include "axmol/3d/MeshVertexAttribute.h"
 #include "axmol/rhi/IndexArray.h"
 
 namespace ax
@@ -50,8 +50,8 @@ using IndexArray  = rhi::IndexArray;
  */
 struct AX_DLL MeshVertexAttrib
 {
-    rhi::VertexFormat type;
-    shaderinfos::VertexKey vertexAttrib;
+    rhi::VertexElementType type;
+    MeshVertexAttribute vertexAttrib;
     int getAttribSizeBytes() const;
 };
 
@@ -345,12 +345,12 @@ public:
 
     struct QuatKey
     {
-        QuatKey() : _time(0), _key(Quaternion::identity()) {}
+        QuatKey() : _time(0), _key(Quat::identity) {}
 
-        QuatKey(float time, const Quaternion& quat) : _time(time), _key(quat) {}
+        QuatKey(float time, const Quat& quat) : _time(time), _key(quat) {}
 
         float _time;
-        Quaternion _key;
+        Quat _key;
     };
 
 public:

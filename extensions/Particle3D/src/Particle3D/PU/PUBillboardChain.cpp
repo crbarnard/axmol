@@ -33,8 +33,8 @@
 #include "axmol/renderer/Renderer.h"
 #include "axmol/renderer/TextureCache.h"
 #include "axmol/rhi/Buffer.h"
-#include "axmol/rhi/DriverContext.h"
-#include "axmol/2d/Camera.h"
+#include "axmol/rhi/GraphicsCore.h"
+#include "axmol/scene/Camera.h"
 #include "axmol/3d/MeshRenderer.h"
 
 namespace ax
@@ -44,7 +44,7 @@ const size_t PUBillboardChain::SEGMENT_EMPTY = std::numeric_limits<size_t>::max(
 //-----------------------------------------------------------------------
 PUBillboardChain::Element::Element() {}
 //-----------------------------------------------------------------------
-PUBillboardChain::Element::Element(const Vec3& pos, float w, float tex, const Color& col, const Quaternion& ori)
+PUBillboardChain::Element::Element(const Vec3& pos, float w, float tex, const Color& col, const Quat& ori)
     : position(pos), width(w), texCoord(tex), color(col), orientation(ori)
 {}
 //-----------------------------------------------------------------------
@@ -67,7 +67,7 @@ PUBillboardChain::PUBillboardChain(std::string_view /*name*/,
     , _vertexContentDirty(true)
     , _texCoordDir(TCD_U)
     , _faceCamera(true)
-    , _normalBase(Vec3::UNIT_X)
+    , _normalBase(Vec3::xAxis)
     , _texture(nullptr)
     , _programState(nullptr)
     , _indexBuffer(nullptr)
@@ -91,7 +91,7 @@ PUBillboardChain::PUBillboardChain(std::string_view /*name*/,
 //-----------------------------------------------------------------------
 PUBillboardChain::~PUBillboardChain()
 {
-    // AX_SAFE_RELEASE(_texture);
+    AX_SAFE_RELEASE(_texture);
     AX_SAFE_RELEASE(_programState);
     AX_SAFE_RELEASE(_vertexBuffer);
     AX_SAFE_RELEASE(_indexBuffer);
@@ -160,7 +160,7 @@ void PUBillboardChain::setupBuffers()
         size_t stride  = sizeof(V3F_T2F_C4F);
         _vertexBuffer  = axdrv->createBuffer(stride * _chainElementList.size() * 2, rhi::BufferType::VERTEX,
                                              rhi::BufferUsage::DYNAMIC);
-        V3F_T2F_C4F vi = {Vec3(0.0f, 0.0f, 0.0f), Vec2(0.0f, 0.0f), Color::WHITE};
+        V3F_T2F_C4F vi = {Vec3(0.0f, 0.0f, 0.0f), Vec2(0.0f, 0.0f), Color::white};
         _vertices.resize(_chainElementList.size() * 2, vi);
 
         _indexBuffer = axdrv->createBuffer(_chainCount * _maxElementsPerChain * 6 * sizeof(uint16_t),
@@ -393,7 +393,7 @@ size_t PUBillboardChain::getNumChainElements(size_t chainIndex) const
     }
 }
 //-----------------------------------------------------------------------
-void PUBillboardChain::updateVertexBuffer(const Mat4& camMat)
+void PUBillboardChain::updateVertexBuffer(const Vec3& eyePos)
 {
     setupBuffers();
 
@@ -403,7 +403,7 @@ void PUBillboardChain::updateVertexBuffer(const Mat4& camMat)
     if (!_vertexContentDirty)
         return;
 
-    V3F_T2F_C4F vi = {Vec3(0.0f, 0.0f, 0.0f), Vec2(0.0f, 0.0f), Color::WHITE};
+    V3F_T2F_C4F vi = {Vec3(0.0f, 0.0f, 0.0f), Vec2(0.0f, 0.0f), Color::white};
     _vertices.assign(_vertices.size(), vi);
     // HardwareVertexBufferSharedPtr pBuffer =
     //	_vertexData->vertexBufferBinding->getBuffer(0);
@@ -412,8 +412,6 @@ void PUBillboardChain::updateVertexBuffer(const Mat4& camMat)
     // const Vector3& camPos = cam->getDerivedPosition();
     // Vector3 eyePos = mParentNode->_getDerivedOrientation().Inverse() *
     //	(camPos - mParentNode->_getDerivedPosition()) / mParentNode->_getDerivedScale();
-
-    Vec3 eyePos(camMat.m[12], camMat.m[13], camMat.m[14]);
 
     Vec3 chainTangent;
     for (ChainSegmentList::iterator segi = _chainSegmentList.begin(); segi != _chainSegmentList.end(); ++segi)
@@ -630,13 +628,14 @@ void PUBillboardChain::updateIndexBuffer()
 void PUBillboardChain::init(std::string_view texFile)
 {
     AX_SAFE_RELEASE_NULL(_programState);
+    AX_SAFE_RELEASE_NULL(_texture);
 
     if (!texFile.empty())
     {
         auto tex = Director::getInstance()->getTextureCache()->addImage(texFile);
         if (tex)
         {
-            _texture      = tex;
+            Object::assign(_texture, tex);
             auto* program = axpm->getBuiltinProgram(rhi::ProgramType::PARTICLE_TEXTURE_3D);
             _programState = new rhi::ProgramState(program);
         }
@@ -668,14 +667,11 @@ void PUBillboardChain::init(std::string_view texFile)
     _meshCommand.setAfterCallback(AX_CALLBACK_0(PUBillboardChain::onAfterDraw, this));
 }
 
-void PUBillboardChain::render(Renderer* renderer, const Mat4& transform, ParticleSystem3D* particleSystem)
+void PUBillboardChain::render(const SceneRenderState& state, const Mat4& transform, ParticleSystem3D* particleSystem)
 {
-    auto camera    = Camera::getVisitingCamera();
-    auto cameraMat = camera->getNodeToWorldTransform();
-
     if (!_chainSegmentList.empty())
     {
-        updateVertexBuffer(cameraMat);
+        updateVertexBuffer(state.getView().position);
         updateIndexBuffer();
 
         _meshCommand.setVertexBuffer(_vertexBuffer);
@@ -687,7 +683,7 @@ void PUBillboardChain::render(Renderer* renderer, const Mat4& transform, Particl
             _meshCommand.init(0.0);
             _stateBlock.setBlendFunc(particleSystem->getBlendFunc());
 
-            auto& projectionMatrix = Director::getInstance()->getMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_PROJECTION);
+            const auto& projectionMatrix = state.getViewProjectionMatrix();
             _programState->setUniform(_locPMatrix, &projectionMatrix.m, sizeof(projectionMatrix.m));
 
             if (_texture)
@@ -698,7 +694,7 @@ void PUBillboardChain::render(Renderer* renderer, const Mat4& transform, Particl
             auto uColor = Vec4(1, 1, 1, 1);
             _programState->setUniform(_locColor, &uColor, sizeof(uColor));
 
-            renderer->addCommand(&_meshCommand);
+            state.getRenderer()->addCommand(&_meshCommand);
         }
     }
 }

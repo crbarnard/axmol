@@ -50,6 +50,11 @@ Available commands:
         build        Compile projects to binary.
         deploy       Compile and deploy a project to a device/simulator.
         run          Compiles, deploy and run project on the target.
+        source-lint  Lint axmol source files (UTF-8 BOM & cstd headers).
+        clang-format Format source files using clang-format.
+        genbindings  Generate Lua bindings for axmol engine.
+        build-docs   Build axmol documentation.
+        publish      Publish axmol release.
 
 Available arguments:
         -h           Show this help information.
@@ -83,7 +88,7 @@ if ($IsMacOS) {
 function axmol_build() {
     $sub_args = $args
     println $sub_args
-    $build_script = Join-Path $PSScriptRoot 'build.ps1'
+    $build_script = Join-Path $PSScriptRoot 'plugins/build.ps1'
     if ("$args".Contains('-d')) {
         # have proj dir
         . $build_script @sub_args
@@ -98,6 +103,9 @@ function axmol_deploy() {
     . axmol_build @sub_args
     if ($TARGET_OS -eq 'winrt') {
         $appxManifestFile = Join-Path $BUILD_DIR "bin/$cmake_target/$optimize_flag/Appx/AppxManifest.xml"
+        if (!(Test-Path $appxManifestFile -PathType Leaf)) {
+            $appxManifestFile = Join-Path $BUILD_DIR "bin/$cmake_target/$optimize_flag/AppxManifest.xml"
+        }
 
         # deploy by visual studio major program: devenv.exe
         $vswherePath = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
@@ -107,8 +115,9 @@ function axmol_deploy() {
             $devenvRoot = Split-Path $devenvPath -Parent
             $env:PATH = "$devenvRoot;$env:PATH"
             $slnDir = $BUILD_DIR
-            $slnFileName = (Get-ChildItem $slnDir *.sln).Name
+            $slnFileName = Get-ChildItem "$slnDir\*" -Include *.slnx,*.sln -File -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Name
             $slnFilePath = Join-Path $slnDir $slnFileName
+            println "Executing: 'devenv $slnFilePath /deploy $optimize_flag /project $cmake_target /projectconfig $optimize_flag'"
             devenv $slnFilePath /deploy $optimize_flag /project $cmake_target /projectconfig $optimize_flag
         }
 
@@ -148,6 +157,10 @@ function axmol_deploy() {
         [XML]$androidManifest = Get-Content $androidManifestFile
         $androidActivity = $androidManifest.manifest.application.activity.name
 
+        $adb_cmd = find_cmd 'adb'
+        if (!$adb_cmd) {
+            $1k.addpath("$env:ANDROID_HOME/platform-tools", $false)
+        }
         adb install -t -r $apkFullPath
         if ($?) {
             println "Deploy $cmake_target done: $androidAppId/$androidActivity"
@@ -242,7 +255,7 @@ function axmol_run() {
 
 $builtinPlugins = @{
     new    = @{
-        proc  = (Join-Path $PSScriptRoot 'axmol_new.ps1');
+        proc  = (Join-Path $PSScriptRoot 'plugins/axmol_new.ps1');
         usage = @"
 usage: axmol new -p dev.axmol.hellocpp -d path/to/project -l cpp --portrait <ProjectName>
 Creates a new project.
@@ -345,6 +358,73 @@ options:
   -d: specify project dir to compile, i.e. -d /path/your/project/
   -f: force generate native project files. Useful if no changes are detected, such as with resource updates.
 "@
+    };
+    'source-lint' = @{
+        proc  = (Join-Path $PSScriptRoot 'plugins/source-lint.ps1');
+        usage = @"
+usage: axmol source-lint
+
+Lint axmol source files (UTF-8 BOM & cstd headers).
+
+options:
+  -h    Show this help message.
+"@
+    };
+    'clang-format' = @{
+        proc  = (Join-Path $PSScriptRoot 'plugins/clang-format.ps1');
+        usage = @"
+usage: axmol clang-format -ver <llvm-version>
+
+Format source files using clang-format.
+
+options:
+  -h          Show this help message.
+  -ver        LLVM/clang-format version to use.
+"@
+    };
+    genbindings = @{
+        proc  = (Join-Path $PSScriptRoot 'plugins/genbindings.ps1');
+        usage = @"
+usage: axmol genbindings [-m <module>]
+
+Generate Lua bindings for axmol engine.
+
+options:
+  -m <module>      Generate one module; default is all. Use -m all to generate all modules.
+                   Both short names (base) and configured names (ax_base) are accepted.
+  -Verify          Parse and validate without writing generated files.
+  -ClangSharpRoot  Local ClangSharp checkout (optional).
+  -LibClangRoot    Directory containing the libclang runtime downloaded by 1kiss.
+  -GeneratorAssembly Prebuilt C# generator DLL (or AXMOL_LUA_GENERATOR_ASSEMBLY).
+  -ExtraClangArguments Additional target/platform defines, e.g. -DAX_ENABLE_VIDEO=1 or -DANDROID=1.
+  -OutputDirectory  Override generated-file directory for staged verification.
+  -NdkRoot         Android NDK root; defaults to ANDROID_NDK. If omitted,
+                   genbindings invokes setup.ps1 -p android as the legacy flow did.
+  -h               Show this help message.
+"@
+    };
+    'build-docs' = @{
+        proc  = (Join-Path $PSScriptRoot 'plugins/build-docs.ps1');
+        usage = @"
+usage: axmol build-docs
+
+Build axmol documentation.
+
+options:
+  -h    Show this help message.
+"@
+    };
+    xarchive = @{
+        proc  = (Join-Path $PSScriptRoot 'plugins/xarchive.ps1');
+        usage = @"
+usage: axmol xarchive -version <ver>
+
+Create a cross-platform archive with specified version.
+
+options:
+  -h          Show this help message.
+  -version    Version in output archive info.
+"@
     }
 }
 
@@ -402,6 +482,9 @@ if ($args[0] -eq 'new') {
     }
     if (!$sub_args.Contains('-l')) {
         $sub_opts['l'] = 'cpp'
+    }
+    if (!$sub_args.Contains('-m')) {
+        $sub_opts['m'] = 'classic'
     }
 }
 

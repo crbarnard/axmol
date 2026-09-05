@@ -42,7 +42,7 @@ NS_AX_EXT_BEGIN
  * @{
  */
 
-class AX_EX_DLL ControlStepper : public Control
+class AX_EXT_API ControlStepper : public Control
 {
 public:
     enum class Part
@@ -76,9 +76,9 @@ public:
     virtual bool isContinuous() const;
 
     // Overrides
-    bool onTouchBegan(Touch* pTouch, Event* pEvent) override;
-    void onTouchMoved(Touch* pTouch, Event* pEvent) override;
-    void onTouchEnded(Touch* pTouch, Event* pEvent) override;
+    bool onPointerDown(PointerEvent* event) override;
+    void onPointerMove(PointerEvent* event) override;
+    void onPointerUp(PointerEvent* event) override;
     void update(float dt) override;
 
     /** Update the layout of the stepper with the given touch location. */

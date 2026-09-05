@@ -28,7 +28,7 @@
  */
 #pragma once
 
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/renderer/GroupCommand.h"
 #include "axmol/renderer/CustomCommand.h"
 #include "axmol/renderer/CallbackCommand.h"
@@ -135,7 +135,7 @@ public:
      * @lua NA
      */
     void onExit() override;
-    void visit(Renderer* renderer, const Mat4& parentTransform, uint32_t parentFlags) override;
+    void visit(const SceneRenderState& state, const Mat4& parentTransform, uint32_t parentFlags) override;
 
     void setGlobalZOrder(float globalZOrder) override;
 

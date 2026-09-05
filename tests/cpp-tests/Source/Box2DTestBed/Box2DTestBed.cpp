@@ -1,5 +1,6 @@
 /****************************************************************************
  * Copyright (c) 2021 @aismann; Peter Eismann, Germany; dreifrankensoft
+ * Copyright (c) 2019-present Axmol Engine contributors (see AUTHORS.md).
 
  https://axmol.dev/
 
@@ -25,12 +26,14 @@
 #include "axmol/platform/PlatformConfig.h"
 #include "extensions/axmol-ext.h"
 #include "ImGui/ImGuiPresenter.h"
+#include "implot.h"
 #include "axmol/axmol.h"
 
 #include "Box2DTestBed.h"
 #include "samples/sample.h"
-#include "samples/TaskScheduler.h"
 #include "axmol/platform/RenderView.h"
+
+#include "box2d/constants.h"
 
 using namespace ax;
 USING_NS_AX_EXT;
@@ -79,14 +82,19 @@ static void SortTests()
 Box2DTestBedTests::Box2DTestBedTests()
 {
     // TODO: determine properly view size
-    s_context.camera.m_width  = g_resourceSize.width;
-    s_context.camera.m_height = g_resourceSize.height;
-    s_context.camera.m_zoom   = 80;
-    s_context.camera.m_center = b2Vec2_zero;
+    s_context.camera.width  = g_resourceSize.width;
+    s_context.camera.height = g_resourceSize.height;
+    s_context.camera.zoom   = 80;
+    s_context.camera.center = b2Vec2_zero;
 
-    s_context.window = static_cast<RenderViewImpl*>(Director::getInstance()->getRenderView())->getWindow();
+    s_context.window = static_cast<RenderView*>(Director::getInstance()->getRenderView())->getWindow();
 
-    ImGuiPresenter::getInstance()->setViewResolution(s_context.camera.m_width, s_context.camera.m_height);
+    s_context.Load();
+
+#if defined(AX_PLATFORM_GLFW)
+    static_cast<RenderView*>(Director::getInstance()->getRenderView())
+        ->setWindowed(s_context.camera.width, s_context.camera.height);
+#endif
 
     SortTests();
 
@@ -109,9 +117,10 @@ Box2DTestBed::Box2DTestBed()
 
 Box2DTestBed::~Box2DTestBed()
 {
-    //_eventDispatcher->removeEventListener(_touchListener);
     _eventDispatcher->removeEventListener(_keyboardListener);
-    _eventDispatcher->removeEventListener(_mouseListener);
+    _eventDispatcher->removeEventListener(_pointerListener);
+
+    AX_SAFE_DELETE(_sampleDrawProxy);
 }
 
 Box2DTestBed* Box2DTestBed::create(int index)
@@ -134,58 +143,54 @@ bool Box2DTestBed::initWithEntryIndex(int index)
 
     m_entryIndex = s_context.sampleIndex = index;
 
+    _sampleDrawProxy = new SampleDraw{&s_context};
+    s_context.draw   = _sampleDrawProxy;
+
     m_entry  = g_sampleEntries + index;
     m_sample = m_entry->createFcn(&s_context);
 
     // init physics
     this->initPhysics();
 
+    _sampleDrawProxy->impl = _debugDrawNode;
+
     auto label = Label::createWithTTF(m_entry->name, "fonts/arial.ttf", 28);
     addChild(label, 1);
     label->setPosition(visibleOrigin.x + visibleSize.width / 2, visibleOrigin.y + visibleSize.height - 50);
 
-    // Adds touch event listener
-    // _touchListener = EventListenerTouchOneByOne::create();
-    // _touchListener->setSwallowTouches(true);
-    // _touchListener->onTouchBegan = AX_CALLBACK_2(Box2DTestBed::onTouchBegan, this);
-    // _touchListener->onTouchMoved = AX_CALLBACK_2(Box2DTestBed::onTouchMoved, this);
-    // _touchListener->onTouchEnded = AX_CALLBACK_2(Box2DTestBed::onTouchEnded, this);
-    // _eventDispatcher->addEventListenerWithFixedPriority(_touchListener, 10);
-
     // Adds Keyboard event listener
-    _keyboardListener                = EventListenerKeyboard::create();
-    _keyboardListener->onKeyPressed  = AX_CALLBACK_2(Box2DTestBed::onKeyPressed, this);
-    _keyboardListener->onKeyReleased = AX_CALLBACK_2(Box2DTestBed::onKeyReleased, this);
+    _keyboardListener                = KeyboardEventListener::create();
+    _keyboardListener->onKeyPressed  = AX_CALLBACK_1(Box2DTestBed::onKeyPressed, this);
+    _keyboardListener->onKeyReleased = AX_CALLBACK_1(Box2DTestBed::onKeyReleased, this);
     _eventDispatcher->addEventListenerWithFixedPriority(_keyboardListener, 11);
 
-    _mouseListener                = EventListenerMouse::create();
-    _mouseListener->onMouseMove   = AX_CALLBACK_1(Box2DTestBed::onMouseMove, this);
-    _mouseListener->onMouseUp     = AX_CALLBACK_1(Box2DTestBed::onMouseUp, this);
-    _mouseListener->onMouseDown   = AX_CALLBACK_1(Box2DTestBed::onMouseDown, this);
-    _mouseListener->onMouseScroll = AX_CALLBACK_1(Box2DTestBed::onMouseScroll, this);
-    _eventDispatcher->addEventListenerWithFixedPriority(_mouseListener, 12);
+    _pointerListener                  = PointerEventListener::create();
+    _pointerListener->onPointerMove   = AX_CALLBACK_1(Box2DTestBed::onPointerMove, this);
+    _pointerListener->onPointerUp     = AX_CALLBACK_1(Box2DTestBed::onPointerUp, this);
+    _pointerListener->onPointerDown   = AX_CALLBACK_1(Box2DTestBed::onPointerDown, this);
+    _pointerListener->onPointerScroll = AX_CALLBACK_1(Box2DTestBed::onPointerScroll, this);
+    _eventDispatcher->addEventListenerWithFixedPriority(_pointerListener, 12);
 
     return true;
 }
 
-void Box2DTestBed::onKeyPressed(EventKeyboard::KeyCode code, Event* event)
+void Box2DTestBed::onKeyPressed(KeyboardEvent* event)
 {
     // AXLOGD("onKeyPressed, keycode: {}", static_cast<int>(code));
     // m_sample->Keyboard((static_cast<int>(code) - 59));  // its a bad hack!
 }
 
-void Box2DTestBed::onKeyReleased(EventKeyboard::KeyCode code, Event* event)
+void Box2DTestBed::onKeyReleased(KeyboardEvent* event)
 {
-    AXLOGD("onKeyPressed, keycode: {}", static_cast<int>(code));
+    auto keyCode = static_cast<int>(event->getKeyCode());
+    AXLOGD("onKeyPressed, keycode: {}", keyCode);
     // m_sample->KeyboardUp((static_cast<int>(code) - 59));  // its a bad hack!
-    m_sample->Keyboard((static_cast<int>(code) - 59));
+    m_sample->Keyboard(keyCode - 59);
 }
 
-bool Box2DTestBed::onMouseDown(Event* event)
+bool Box2DTestBed::onPointerDown(PointerEvent* e)
 {
-    EventMouse* e = static_cast<EventMouse*>(event);
-
-    auto location = e->getLocation() - _debugDrawNode->getWorldOffset();
+    auto location = e->getWorldPoint() - _debugDrawNode->getWorldOffset();
     b2Vec2 pos    = {location.x / _debugDrawNode->getPTMRatio(), location.y / _debugDrawNode->getPTMRatio()};
 
     int mods = 0;
@@ -201,43 +206,38 @@ bool Box2DTestBed::onMouseDown(Event* event)
     _mouseDownPos    = pos;
     _dragingStartPos = _debugDrawNode->getPosition();
 
-    m_sample->MouseDown(pos, static_cast<int>(e->getMouseButton()), mods);
+    m_sample->MouseDown(pos, static_cast<int>(e->getButton()), mods);
 
     return true;
 }
 
-bool Box2DTestBed::onMouseUp(Event* event)
+bool Box2DTestBed::onPointerUp(PointerEvent* ev)
 {
     const auto ratio = _debugDrawNode->getPTMRatio();
     _draging         = false;
-    EventMouse* e    = static_cast<EventMouse*>(event);
-    auto location    = e->getLocation() - _debugDrawNode->getWorldOffset();
+    auto location    = ev->getWorldPoint() - _debugDrawNode->getWorldOffset();
     b2Vec2 pos       = {location.x / ratio, location.y / ratio};
-    m_sample->MouseUp(pos, static_cast<int>(e->getMouseButton()));
+    m_sample->MouseUp(pos, static_cast<int>(ev->getButton()));
     return true;
 }
 
-bool Box2DTestBed::onMouseMove(Event* event)
+void Box2DTestBed::onPointerMove(PointerEvent* ev)
 {
     const auto ratio = _debugDrawNode->getPTMRatio();
-    EventMouse* e    = static_cast<EventMouse*>(event);
-
-    auto location = e->getLocation() - _debugDrawNode->getWorldOffset();
+    auto location    = ev->getWorldPoint() - _debugDrawNode->getWorldOffset();
     b2Vec2 pos{location.x / ratio, location.y / ratio};
     m_sample->MouseMove(pos);
 
-    if (e->getMouseButton() == EventMouse::MouseButton::BUTTON_RIGHT)
+    if (ev->isButtonPressed(InputButton::Right))
     {
         auto diff = b2Sub(pos, _mouseDownPos);
         _debugDrawNode->setPosition(_dragingStartPos.x + diff.x, _dragingStartPos.y + diff.y);
     }
-    return true;
 }
 
-bool Box2DTestBed::onMouseScroll(Event* event)
+bool Box2DTestBed::onPointerScroll(PointerEvent* ev)
 {
-    EventMouse* e = (EventMouse*)event;
-    _debugDrawNode->setPTMRatio(_debugDrawNode->getPTMRatio() - e->getScrollY());
+    _debugDrawNode->setPTMRatio(_debugDrawNode->getPTMRatio() - ev->getScrollY());
     return true;
 }
 
@@ -248,9 +248,11 @@ void Box2DTestBed::onEnter()
     ImGuiPresenter::getInstance()->enableDPIScale();
     ImGuiPresenter::getInstance()->addFont(FileUtils::getInstance()->fullPathForFilename("fonts/arial.ttf"));
     ImGuiPresenter::getInstance()->addRenderLoop("#bv3t", AX_CALLBACK_0(Box2DTestBed::renderSamples, this), this);
+    ImPlot::CreateContext();
 }
 void Box2DTestBed::onExit()
 {
+    ImPlot::DestroyContext();
     auto presenter = ImGuiPresenter::getInstance();
     if (presenter)
         presenter->removeRenderLoop("#bv3t");
@@ -259,7 +261,7 @@ void Box2DTestBed::onExit()
 
 void Box2DTestBed::initPhysics()
 {
-    _debugDrawNode = new SampleDrawNode(&s_context.draw);
+    _debugDrawNode = new SampleDrawNode(&s_context.debugDraw);
     _debugDrawNode->initWithWorld(m_sample->m_worldId);
     _debugDrawNode->setAutoDraw(false);
     addChild(_debugDrawNode);
@@ -288,37 +290,43 @@ void Box2DTestBed::renderSamples()
 
     auto cursorPos = ImGui::GetCursorScreenPos();
 
-    auto& windowSize          = _director->getRenderView()->getWindowSize();
-    s_context.camera.m_width  = static_cast<int>(windowSize.width);
-    s_context.camera.m_height = static_cast<int>(windowSize.height);
+    auto& windowSize        = _director->getRenderView()->getWindowSize();
+    s_context.camera.width  = static_cast<int>(windowSize.width);
+    s_context.camera.height = static_cast<int>(windowSize.height);
 
-    ImGui::SetNextWindowPos({5.f, 5.f});
-    ImGui::SetNextWindowSize({s_context.camera.m_width - 10.f, s_context.camera.m_height - 10.f});
+    auto viewport = ImGui::GetMainViewport();
+
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + 5.0f, viewport->Pos.y + 5.0f));
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x - 10.0f, viewport->Size.y - 10.0f));
     ImGui::SetNextWindowBgAlpha(0.0f);
     ImGui::Begin("Overlay", nullptr,
                  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize |
                      ImGuiWindowFlags_NoScrollbar);
     ImGui::End();
 
+    m_sample->ResetText();
+
     char buffer[128];
-    if (s_context.draw.m_showUI)
+    if (s_context.showUI)
     {
         const SampleEntry& entry = g_sampleEntries[s_context.sampleIndex];
         snprintf(buffer, 128, "%s : %s", entry.category, entry.name);
-        m_sample->DrawTitle(buffer);
+        m_sample->DrawColoredTextLine(b2_colorYellow, buffer);
     }
 
     m_sample->Step();
 
     /// BEGIN UpdateUI
-    int maxWorkers  = enki::GetNumHardwareThreads();
+    int maxWorkers  = B2_MAX_WORKERS;
     float menuWidth = 180.0f * Device::getPixelRatio();
-    if (s_context.draw.m_showUI)
+    if (s_context.showUI)
     {
-        ImGui::SetNextWindowPos({s_context.camera.m_width - menuWidth - 10.0f, 10.0f});
-        ImGui::SetNextWindowSize({menuWidth, s_context.camera.m_height - 20.0f});
-
-        ImGui::Begin("Tools", &s_context.draw.m_showUI,
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::SetNextWindowPos(
+            ImVec2(viewport->Pos.x + viewport->Size.x - menuWidth - 10.0f, viewport->Pos.y + 10.0f));
+        ImGui::SetNextWindowSize(ImVec2(menuWidth, viewport->Size.y - 20.0f));
+        ImGui::Begin("Tools", &s_context.showUI,
                      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 
         if (ImGui::BeginTabBar("ControlTabs", ImGuiTabBarFlags_None))
@@ -341,24 +349,43 @@ void Box2DTestBed::renderSamples()
                 ImGui::Checkbox("Sleep", &s_context.enableSleep);
                 ImGui::Checkbox("Warm Starting", &s_context.enableWarmStarting);
                 ImGui::Checkbox("Continuous", &s_context.enableContinuous);
+                ImGui::Checkbox("Contact Recycling", &s_context.enableRecycling);
 
                 ImGui::Separator();
 
-                ImGui::Checkbox("Shapes", &s_context.drawShapes);
-                ImGui::Checkbox("Joints", &s_context.drawJoints);
-                ImGui::Checkbox("Joint Extras", &s_context.drawJointExtras);
-                ImGui::Checkbox("Bounds", &s_context.drawBounds);
-                ImGui::Checkbox("Contact Points", &s_context.drawContactPoints);
-                ImGui::Checkbox("Contact Normals", &s_context.drawContactNormals);
-                ImGui::Checkbox("Contact Impulses", &s_context.drawContactImpulses);
-                ImGui::Checkbox("Contact Features", &s_context.drawContactFeatures);
-                ImGui::Checkbox("Friction Impulses", &s_context.drawFrictionImpulses);
-                ImGui::Checkbox("Mass", &s_context.drawMass);
-                ImGui::Checkbox("Body Names", &s_context.drawBodyNames);
-                ImGui::Checkbox("Graph Colors", &s_context.drawGraphColors);
-                ImGui::Checkbox("Islands", &s_context.drawIslands);
+                ImGui::Checkbox("Shapes", &s_context.debugDraw.drawShapes);
+                ImGui::Checkbox("Joints", &s_context.debugDraw.drawJoints);
+                ImGui::Checkbox("Joint Extras", &s_context.debugDraw.drawJointExtras);
+                ImGui::Checkbox("Bounds", &s_context.debugDraw.drawBounds);
+                ImGui::Checkbox("Mass", &s_context.debugDraw.drawMass);
+                ImGui::Checkbox("Body Names", &s_context.debugDraw.drawBodyNames);
+                ImGui::Checkbox("Graph Colors", &s_context.debugDraw.drawGraphColors);
+                ImGui::Checkbox("Islands", &s_context.debugDraw.drawIslands);
                 ImGui::Checkbox("Counters", &s_context.drawCounters);
                 ImGui::Checkbox("Profile", &s_context.drawProfile);
+                ImGui::Checkbox("Frame Time", &s_context.frameTime);
+
+                ImGui::Separator();
+
+                {
+                    bool changed            = false;
+                    const char* drawTypes[] = {"None", "Clip", "AnchorA", "AnchorB", "Average"};
+                    int drawType            = int(s_context.debugDraw.contactDrawType);
+                    changed = changed || ImGui::Combo("Contact", &drawType, drawTypes, IM_ARRAYSIZE(drawTypes));
+                    s_context.debugDraw.contactDrawType = b2ContactDrawType(drawType);
+                }
+
+                ImGui::Checkbox("Contact Normals", &s_context.debugDraw.drawContactNormals);
+                ImGui::Checkbox("Contact Features", &s_context.debugDraw.drawContactFeatures);
+                ImGui::Checkbox("Contact Forces", &s_context.debugDraw.drawContactForces);
+                ImGui::Checkbox("Friction Forces", &s_context.debugDraw.drawFrictionForces);
+
+                ImGui::Separator();
+
+                ImGui::PushItemWidth(80.0f);
+                ImGui::InputFloat("Joint Scale", &s_context.debugDraw.jointScale);
+                ImGui::InputFloat("Force Scale", &s_context.debugDraw.forceScale);
+                ImGui::PopItemWidth();
 
                 ImVec2 button_sz = ImVec2(-1, 0);
                 if (ImGui::Button("Pause (P)", button_sz))
@@ -454,15 +481,14 @@ void Box2DTestBed::renderSamples()
     }
     /// END UpdateUI
 
-    if (s_context.draw.m_showUI)
+    if (s_context.showUI)
     {
         snprintf(buffer, 128, "%.1f ms - step %d - camera (%g, %g, %g)", 1000.0f * _director->getDeltaTime(),
-                 m_sample->m_stepCount, s_context.camera.m_center.x, s_context.camera.m_center.y,
-                 s_context.camera.m_zoom);
+                 m_sample->m_stepCount, s_context.camera.center.x, s_context.camera.center.y, s_context.camera.zoom);
         ImGui::Begin("Overlay", nullptr,
                      ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize |
                          ImGuiWindowFlags_NoScrollbar);
-        ImGui::SetCursorPos(ImVec2(5.0f, s_context.camera.m_height - 50.0f));
+        ImGui::SetCursorPos(ImVec2(5.0f, s_context.camera.height - 50.0f));
         ImGui::TextColored(ImColor(153, 230, 153, 255), "%s", buffer);
         ImGui::End();
     }

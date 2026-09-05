@@ -1,16 +1,16 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated July 28, 2023. Replaces all prior versions.
+ * Last updated April 5, 2025. Replaces all prior versions.
  *
- * Copyright (c) 2013-2023, Esoteric Software LLC
+ * Copyright (c) 2013-2025, Esoteric Software LLC
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
  * conditions of Section 2 of the Spine Editor License Agreement:
  * http://esotericsoftware.com/spine-editor-license
  *
- * Otherwise, it is permitted to integrate the Spine Runtimes into software or
- * otherwise create derivative works of the Spine Runtimes (collectively,
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
  * "Products"), provided that each user of the Products must obtain their own
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
@@ -23,8 +23,8 @@
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
  * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE
- * SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #ifndef Spine_AttachmentTimeline_h
@@ -32,10 +32,9 @@
 
 #include <spine/Timeline.h>
 #include <spine/SpineObject.h>
-#include <spine/Vector.h>
-#include <spine/MixBlend.h>
-#include <spine/MixDirection.h>
+#include <spine/Array.h>
 #include <spine/SpineString.h>
+#include <spine/SlotTimeline.h>
 
 namespace spine {
 
@@ -43,39 +42,46 @@ namespace spine {
 
 	class Slot;
 
+	class SlotPose;
+
 	class Event;
 
-	class SP_API AttachmentTimeline : public Timeline {
+	class SP_API AttachmentTimeline : public Timeline, public SlotTimeline {
 		friend class SkeletonBinary;
 
 		friend class SkeletonJson;
 
-	RTTI_DECL
+		RTTI_DECL
 
 	public:
 		explicit AttachmentTimeline(size_t frameCount, int slotIndex);
 
 		virtual ~AttachmentTimeline();
 
-		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
-			  MixDirection direction);
+		virtual void apply(Skeleton &skeleton, float lastTime, float time, Array<Event *> *events, float alpha, MixFrom from, bool add, bool out,
+						   bool appliedPose) override;
 
-		/// Sets the time and value of the specified keyframe.
+		/// Sets the time and attachment name for the specified frame.
+		/// @param frame Between 0 and frameCount, inclusive.
+		/// @param time The frame time in seconds.
 		void setFrame(int frame, float time, const String &attachmentName);
 
-		Vector<String> &getAttachmentNames();
+		/// The attachment name for each frame. May contain null values to clear the attachment.
+		Array<String> &getAttachmentNames();
 
-		int getSlotIndex() { return _slotIndex; }
+		virtual int getSlotIndex() override {
+			return _slotIndex;
+		}
 
-		void setSlotIndex(int inValue) { _slotIndex = inValue; }
+		virtual void setSlotIndex(int inValue) override {
+			_slotIndex = inValue;
+		}
 
 	protected:
 		int _slotIndex;
+		Array<String> _attachmentNames;
 
-		Vector<String> _attachmentNames;
-
-		void setAttachment(Skeleton &skeleton, Slot &slot, String *attachmentName);
+		void setAttachment(Skeleton &skeleton, SlotPose &pose, String *attachmentName);
 	};
 }
 

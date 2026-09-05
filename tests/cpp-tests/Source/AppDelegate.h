@@ -29,6 +29,15 @@
 #define _APP_DELEGATE_H_
 
 #include "axmol/platform/Application.h"
+#include "axmol/base/Types.h"
+#include <span>
+#include <string>
+#include <string_view>
+
+namespace ax
+{
+class CommandLineArgs;
+}
 
 class TestController;
 /**
@@ -42,7 +51,7 @@ public:
     AppDelegate();
     virtual ~AppDelegate();
 
-    void initContextAttrs() override;
+    void applicationWillLaunch() override;
 
     /**
     @brief    Implement Director and ax::Scene* init code here.

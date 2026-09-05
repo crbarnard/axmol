@@ -24,8 +24,8 @@
  ****************************************************************************/
 
 #include "AppDelegate.h"
-#include "lua-bindings/manual/LuaEngine.h"
-#include "lua-bindings/manual/lua_module_register.h"
+#include "lua-bindings/runtime/LuaEngine.h"
+#include "lua-bindings/runtime/lua_module_register.h"
 
 #define USE_VR_RENDERER  0
 #define USE_AUDIO_ENGINE 1
@@ -35,7 +35,7 @@
 #endif
 
 #if USE_VR_RENDERER && defined(AX_ENABLE_VR)
-#    include "axmol/vr/VRGenericRenderer.h"
+#    include "axmol/vr/VRPreviewSceneCompositor.h"
 #endif
 
 using namespace ax;
@@ -46,8 +46,22 @@ AppDelegate::~AppDelegate() {}
 
 // if you want a different context, modify the value of contextAttrs
 // it will affect all platforms
-void AppDelegate::initContextAttrs()
+void AppDelegate::applicationWillLaunch()
 {
+    // Overrides any command-line driver preference (default is Auto).
+    // GraphicsCore::setPreferredBackend(GraphicsBackend::Auto);
+
+    // Enable logging output colored text style and prefix timestamp
+    setLogFmtFlag(ax::LogFmtFlag::Full);
+
+    // Register Vulkan interop for OpenXR support, if available. This allows the engine to share Vulkan resources with
+    // external APIs. if AX_ENABLE_OPENXR or AX_ENABLE_VK is not defined, this call is no-op.
+    registerVulkanInterop("Dummy"sv);
+
+    // set vulkan min android api level, 31 for Android 12
+    // refer: https://developer.android.com/tools/releases/platforms
+    GraphicsCore::setVulkanMinAndroidApiLevel(31);
+
     // set app context attributes: red,green,blue,alpha,depth,stencil,multisamplesCount
     // powerPreference only affect when RHI backend is D3D
     ContextAttrs contextAttrs = {.powerPreference = PowerPreference::HighPerformance};
@@ -95,15 +109,11 @@ bool AppDelegate::applicationDidFinishLaunching()
     }
 
 #if USE_VR_RENDERER && defined(AX_ENABLE_VR)
-    auto renderView = Director::getInstance()->getRenderView();
-    if (renderView)
-    {
-        auto vrRenderer = std::make_unique<VRGenericRenderer>();
-        // On Android/iOS emulator devices, uncomment to visualize the left/right eye VR rendering output.
-        // Useful for debugging stereo rendering without a physical headset.
-        // vrRenderer->setDebugIgnoreHeadTracker(true);
-        renderView->setVR(std::move(vrRenderer));
-    }
+    auto vrPreview = std::make_unique<VRPreviewSceneCompositor>();
+    // On Android/iOS emulator devices, uncomment to visualize the left/right eye VR rendering output.
+    // Useful for debugging stereo rendering without a physical headset.
+    // vrPreview->setDebugIgnoreHeadTracker(true);
+    Director::getInstance()->setSceneCompositor(std::move(vrPreview));
 #endif
 
     return true;
@@ -112,7 +122,7 @@ bool AppDelegate::applicationDidFinishLaunching()
 // This function will be called when the app is inactive. Note, when receiving a phone call it is invoked.
 void AppDelegate::applicationDidEnterBackground()
 {
-    Director::getInstance()->stopAnimation();
+    Director::getInstance()->deactivate();
 
 #if USE_AUDIO_ENGINE
     AudioEngine::pauseAll();
@@ -122,7 +132,7 @@ void AppDelegate::applicationDidEnterBackground()
 // this function will be called when the app is active again
 void AppDelegate::applicationWillEnterForeground()
 {
-    Director::getInstance()->startAnimation();
+    Director::getInstance()->activate();
 
 #if USE_AUDIO_ENGINE
     AudioEngine::resumeAll();

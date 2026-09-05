@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 #include "axmol/base/Protocols.h"
 #include "axmol/math/Math.h"
 #include "Particle3D/ParticleSystem3D.h"
@@ -56,7 +56,7 @@ enum PUComponentType
     CT_OBSERVER
 };
 
-struct AX_EX_DLL PUParticle3D : public Particle3D
+struct AX_EXT_API PUParticle3D : public Particle3D
 {
     static float DEFAULT_TTL;
     static float DEFAULT_MASS;
@@ -113,12 +113,12 @@ struct AX_EX_DLL PUParticle3D : public Particle3D
         in 2D. */
     float zRotationSpeed;  // radian
 
-    // Quaternion orientationInWorld;
+    // Quat orientationInWorld;
     /*@remarks
         The orientation of the particle is only visible if the Particle Renderer - such as the Box renderer -
         supports orientation.
     */
-    Quaternion originalOrientation;
+    Quat originalOrientation;
 
     /** The rotation is used in combination with orientation. Because the rotation speed is part
         of the particle itself, it can be changed independently. */
@@ -204,7 +204,7 @@ struct AX_EX_DLL PUParticle3D : public Particle3D
     // float depthInWorld;
 };
 
-class AX_EX_DLL PUParticleSystem3D : public ParticleSystem3D
+class AX_EXT_API PUParticleSystem3D : public ParticleSystem3D
 {
 public:
     typedef tlx::string_map<ParticlePool> ParticlePoolMap;
@@ -221,7 +221,7 @@ public:
     static PUParticleSystem3D* create(std::string_view filePath);
     static PUParticleSystem3D* create(std::string_view filePath, std::string_view materialPath);
 
-    void draw(Renderer* renderer, const Mat4& transform, uint32_t flags) override;
+    void draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags) override;
 
     void update(float delta) override;
     void forceUpdate(float delta);
@@ -282,7 +282,7 @@ public:
     void setDefaultDepth(const float depth);
 
     Vec3 getDerivedPosition();
-    Quaternion getDerivedOrientation();
+    Quat getDerivedOrientation();
     Vec3 getDerivedScale();
 
     /**
@@ -394,7 +394,7 @@ protected:
     float _particleSystemScaleVelocity;
     float _timeElapsedSinceStart;
 
-    Quaternion _rotationOffset;  // Rotation offset between 2 updates.
+    Quat _rotationOffset;  // Rotation offset between 2 updates.
 
     Vec3 _rotationCentre;  // The rotation centre.
 
@@ -414,7 +414,7 @@ protected:
     Vec3 _latestPositionDiff;
     Vec3 _latestPosition;  // Keep latest position
 
-    Quaternion _latestOrientation;
+    Quat _latestOrientation;
 
     PUParticleSystem3D* _parentParticleSystem;
 };

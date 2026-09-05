@@ -1,16 +1,17 @@
 set(_AX_PHYSICS_HEADER
-    physics/PhysicsContact.h
-    physics/PhysicsWorld.h
-    physics/PhysicsBody.h
-    physics/PhysicsCollider.h
-    physics/PhysicsHelper.h
-    physics/PhysicsJoint.h
-    )
+  physics/PhysicsConsts.h
+  physics/PhysicsActor.h
+  physics/ContactEventBits.h
+  )
 
 set(_AX_PHYSICS_SRC
-    physics/PhysicsBody.cpp
-    physics/PhysicsContact.cpp
-    physics/PhysicsJoint.cpp
-    physics/PhysicsCollider.cpp
-    physics/PhysicsWorld.cpp
-    )
+  physics/PhysicsActor.cpp
+  )
+
+if(AX_ENABLE_PHYSICS_2D)
+  include(physics/2d/CMakeLists.txt)
+endif()
+
+if(AX_ENABLE_PHYSICS_3D)
+  include(physics/3d/CMakeLists.txt)
+endif()

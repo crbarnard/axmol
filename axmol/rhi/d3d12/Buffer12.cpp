@@ -22,7 +22,7 @@
  THE SOFTWARE.
  ****************************************************************************/
 #include "axmol/rhi/d3d12/Buffer12.h"
-#include "axmol/rhi/d3d12/Driver12.h"
+#include "axmol/rhi/d3d12/GraphicsDevice12.h"
 #include "axmol/base/Logging.h"
 #include <algorithm>
 #include <limits>
@@ -72,16 +72,16 @@ static D3D12_RESOURCE_STATES translateInitialState(BufferType t, BufferUsage usa
     }
 }
 
-std::size_t BufferImpl::alignTo(std::size_t value, std::size_t alignment)
+size_t BufferImpl::alignTo(size_t value, size_t alignment)
 {
     return (value + alignment - 1) & ~(alignment - 1);
 }
 
 /* -------------------------------------------------- ctor */
-BufferImpl::BufferImpl(DriverImpl* driver, std::size_t size, BufferType type, BufferUsage usage, const void* initial)
+BufferImpl::BufferImpl(GraphicsDeviceImpl* driver, size_t size, BufferType type, BufferUsage usage, const void* initial)
     : Buffer(size, type, usage), _driver(driver)
 {
-    AXASSERT(_driver, "DriverImpl must not be null");
+    AXASSERT(_driver, "GraphicsDeviceImpl must not be null");
 
     _resourceFlags = translateResourceFlags(type);
     _heapType      = (usage == BufferUsage::DYNAMIC) ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT;
@@ -178,7 +178,7 @@ void BufferImpl::createNativeBuffer(const void* initial)
 
 /* -------------------------------------------------- updateIndex
    Lazy switch to the per-frame upload resource corresponding to the current
-   frame index obtained from DriverImpl. Avoids iterating all buffers each frame.
+   frame index obtained from GraphicsDeviceImpl. Avoids iterating all buffers each frame.
 */
 void BufferImpl::updateIndex()
 {
@@ -203,7 +203,7 @@ void BufferImpl::updateIndex()
 }
 
 /* -------------------------------------------------- updateData */
-void BufferImpl::updateData(const void* data, std::size_t size)
+void BufferImpl::updateData(const void* data, size_t size)
 {
     AXASSERT(size <= _size, "updateData size overflow");
     AXASSERT(data, "updateData data is null");
@@ -212,7 +212,7 @@ void BufferImpl::updateData(const void* data, std::size_t size)
 }
 
 /* -------------------------------------------------- updateSubData */
-void BufferImpl::updateSubData(const void* data, std::size_t offset, std::size_t size)
+void BufferImpl::updateSubData(const void* data, size_t offset, size_t size)
 {
     AXASSERT(data && (offset + size <= _size), "updateSubData out of bounds");
 
@@ -229,7 +229,7 @@ void BufferImpl::updateSubData(const void* data, std::size_t offset, std::size_t
         D3D12_RANGE readRange{0, 0};  // We don't intend to read from the resource
         HRESULT hr = res->Map(0, &readRange, &mapped);
         AXASSERT(SUCCEEDED(hr), "Failed to map upload buffer");
-        std::memcpy(static_cast<uint8_t*>(mapped) + offset, data, size);
+        ::memcpy(static_cast<uint8_t*>(mapped) + offset, data, size);
         D3D12_RANGE written{offset, offset + size};
         res->Unmap(0, &written);
     }
@@ -244,12 +244,12 @@ void BufferImpl::updateSubData(const void* data, std::size_t offset, std::size_t
     {
         if (_defaultData.size() < offset + size)
             _defaultData.resize(offset + size);
-        std::memcpy(_defaultData.data() + offset, data, size);
+        ::memcpy(_defaultData.data() + offset, data, size);
     }
 }
 
 /* -------------------------------------------------- copyFromUploadBuffer */
-void BufferImpl::copyFromUploadBuffer(const void* data, std::size_t offset, std::size_t size)
+void BufferImpl::copyFromUploadBuffer(const void* data, size_t offset, size_t size)
 {
     AXASSERT(data && size > 0, "copyFromUploadBuffer invalid args");
 
@@ -258,7 +258,7 @@ void BufferImpl::copyFromUploadBuffer(const void* data, std::size_t offset, std:
     auto span      = allocator->allocBytes(size, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 
     // Copy data into upload memory
-    std::memcpy(span.cpuPtr, data, size);
+    ::memcpy(span.cpuPtr, data, size);
 
     // Record isolated copy commands
     auto& submission = _driver->startIsolateSubmission();

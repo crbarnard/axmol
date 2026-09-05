@@ -26,7 +26,7 @@
 #pragma once
 
 #include "axmol/math/Math.h"
-#include "axmol/2d/Node.h"
+#include "axmol/scene/Node.h"
 
 namespace ax
 {
@@ -57,7 +57,7 @@ public:
     Mat4 getWorldToNodeTransform() const override;
     Mat4 getNodeToWorldTransform() const override;
     const Mat4& getNodeToParentTransform() const override;
-    void visit(Renderer* renderer, const Mat4& parentTransform, uint32_t parentFlags) override;
+    void visit(const SceneRenderState& state, const Mat4& parentTransform, uint32_t parentFlags) override;
 
     AttachNode();
     virtual ~AttachNode();

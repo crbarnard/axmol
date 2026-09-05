@@ -34,6 +34,49 @@ THE SOFTWARE.
 namespace ax
 {
 
+void Device::getClipboardText(std::function<void(std::string_view)> callback)
+{
+    if (!callback)
+        return;
+    @autoreleasepool
+    {
+        NSPasteboard* pb = [NSPasteboard generalPasteboard];
+        NSString* s      = [pb stringForType:NSPasteboardTypeString];
+        if (!s)
+        {
+            callback(std::string_view{});
+            return;
+        }
+        const char* utf8 = [s UTF8String];
+        NSUInteger len   = [s lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
+        callback(utf8 ? std::string_view(utf8, static_cast<size_t>(len)) : std::string_view{});
+    }
+}
+
+void Device::setClipboardText(std::string_view text)
+{
+    @autoreleasepool
+    {
+        NSPasteboard* pb = [NSPasteboard generalPasteboard];
+        [pb clearContents];
+
+        NSString* s = [[NSString alloc] initWithBytes:text.data()
+                                               length:(NSUInteger)text.size()
+                                             encoding:NSUTF8StringEncoding];
+        if (s)
+            [pb setString:s forType:NSPasteboardTypeString];
+    }
+}
+
+void Device::clearClipboard()
+{
+    @autoreleasepool
+    {
+        NSPasteboard* pb = [NSPasteboard generalPasteboard];
+        [pb clearContents];
+    }
+}
+
 static NSAttributedString* __attributedStringWithFontSize(NSMutableAttributedString* attributedString, CGFloat fontSize)
 {
     {
@@ -374,15 +417,18 @@ static bool _initWithString(std::string_view text,
 
         if (stroke._strokeSize > 0)
         {
-            NSColor* strokeColor               = [NSColor colorWithDeviceRed:stroke._strokeColor.r / 255.0
+            NSColor* strokeColor = [NSColor colorWithDeviceRed:stroke._strokeColor.r / 255.0
                                                          green:stroke._strokeColor.g / 255.0
                                                           blue:stroke._strokeColor.b / 255.0
                                                          alpha:stroke._strokeColor.a / 255.0];
-            NSNumber* strokeSize               = [NSNumber numberWithFloat:stroke._strokeSize / size * 100.0];
+            NSFont* finalFont    = [stringWithAttributes attribute:NSFontAttributeName atIndex:0 effectiveRange:nil];
+            int finalFontSize    = [finalFont pointSize];
+            NSNumber* strokeSize = [NSNumber numberWithFloat:stroke._strokeSize / finalFontSize * 100.0];
             NSDictionary* tokenAttributesDict2 = [NSDictionary
-                dictionaryWithObjectsAndKeys:foregroundColor, NSForegroundColorAttributeName, font, NSFontAttributeName,
-                                             paragraphStyle, NSParagraphStyleAttributeName, strokeSize,
-                                             NSStrokeWidthAttributeName, strokeColor, NSStrokeColorAttributeName, nil];
+                dictionaryWithObjectsAndKeys:foregroundColor, NSForegroundColorAttributeName, finalFont,
+                                             NSFontAttributeName, paragraphStyle, NSParagraphStyleAttributeName,
+                                             strokeSize, NSStrokeWidthAttributeName, strokeColor,
+                                             NSStrokeColorAttributeName, nil];
             NSAttributedString* strokeString =
                 [[[NSAttributedString alloc] initWithString:string attributes:tokenAttributesDict2] autorelease];
             [strokeString drawInRect:textRect];

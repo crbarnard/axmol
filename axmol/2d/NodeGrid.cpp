@@ -25,6 +25,7 @@
 #include "axmol/2d/NodeGrid.h"
 #include "axmol/2d/Grid.h"
 #include "axmol/renderer/Renderer.h"
+#include "axmol/scene/Camera.h"
 
 namespace ax
 {
@@ -74,8 +75,26 @@ void NodeGrid::setTarget(Node* target)
 
 NodeGrid::~NodeGrid()
 {
+    AX_SAFE_RELEASE(_gridCamera);
     AX_SAFE_RELEASE(_nodeGrid);
     AX_SAFE_RELEASE(_gridTarget);
+}
+
+Camera* NodeGrid::getGridCamera(const Camera* currentCamera)
+{
+    if (!_gridCamera)
+    {
+        _gridCamera = Camera::create(CameraMode::Ortho);
+        AX_SAFE_RETAIN(_gridCamera);
+    }
+    else
+    {
+        _gridCamera->configureOrthographicView(_director->getCanvasSize(), -1024, 1024);
+    }
+
+    _gridCamera->setCameraFlag(currentCamera ? currentCamera->getCameraFlag() : CameraFlag::DEFAULT);
+
+    return _gridCamera;
 }
 
 void NodeGrid::onGridBeginDraw()
@@ -86,15 +105,15 @@ void NodeGrid::onGridBeginDraw()
     }
 }
 
-void NodeGrid::onGridEndDraw()
+void NodeGrid::onGridEndDraw(const SceneRenderState& state)
 {
     if (_nodeGrid && _nodeGrid->isActive())
     {
-        _nodeGrid->afterDraw(this);
+        _nodeGrid->afterDraw(this, state);
     }
 }
 
-void NodeGrid::visit(Renderer* renderer, const Mat4& parentTransform, uint32_t parentFlags)
+void NodeGrid::visit(const SceneRenderState& state, const Mat4& parentTransform, uint32_t parentFlags)
 {
     // quick return if not visible. children won't be drawn.
     if (!_visible)
@@ -107,28 +126,19 @@ void NodeGrid::visit(Renderer* renderer, const Mat4& parentTransform, uint32_t p
         _modelViewTransform = this->transform(parentTransform);
     _transformUpdated = false;
 
-    // IMPORTANT:
-    // To ease the migration to v3.0, we still support the Mat4 stack,
-    // but it is deprecated and your code should not rely on it
-    _director->pushMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW);
-    _director->loadMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW, _modelViewTransform);
-
-    Director::Projection beforeProjectionType = Director::Projection::DEFAULT;
-    if (_nodeGrid && _nodeGrid->isActive())
-    {
-        beforeProjectionType = _director->getProjection();
-        _nodeGrid->set2DProjection();
-    }
+    auto activeGrid    = _nodeGrid && _nodeGrid->isActive();
+    auto currentCamera = state.getCamera();
+    auto gridCam       = activeGrid ? getGridCamera(currentCamera) : nullptr;
 
     onGridBeginDraw();
 
     if (_gridTarget)
     {
-        _gridTarget->visit(renderer, _modelViewTransform, dirty);
+        _gridTarget->visit(state, _modelViewTransform, dirty);
     }
 
     int i                = 0;
-    bool visibleByCamera = isVisitableByVisitingCamera();
+    bool visibleByCamera = isVisitableByCamera(state.cameraFlag);
 
     if (!_children.empty())
     {
@@ -139,37 +149,45 @@ void NodeGrid::visit(Renderer* renderer, const Mat4& parentTransform, uint32_t p
             auto node = _children.at(i);
 
             if (node && node->getLocalZOrder() < 0)
-                node->visit(renderer, _modelViewTransform, dirty);
+                node->visit(state, _modelViewTransform, dirty);
             else
                 break;
         }
         // self draw,currently we have nothing to draw on NodeGrid, so there is no need to add render command
         if (visibleByCamera)
-            this->draw(renderer, _modelViewTransform, dirty);
+            this->draw(state, _modelViewTransform, dirty);
 
         for (auto it = _children.cbegin() + i, itCend = _children.cend(); it != itCend; ++it)
         {
-            (*it)->visit(renderer, _modelViewTransform, dirty);
+            (*it)->visit(state, _modelViewTransform, dirty);
         }
     }
     else if (visibleByCamera)
     {
-        this->draw(renderer, _modelViewTransform, dirty);
+        this->draw(state, _modelViewTransform, dirty);
     }
 
     // FIX ME: Why need to set _orderOfArrival to 0??
     // Please refer to https://github.com/cocos2d/cocos2d-x/pull/6920
     // setOrderOfArrival(0);
 
-    if (_nodeGrid && _nodeGrid->isActive())
+    if (_nodeGrid)
     {
-        // restore projection
-        _director->setProjection(beforeProjectionType);
+        // Capture may use the scene/XR camera, while blit still uses gridCam's
+        // canvas ortho matrix. Projecting the uploaded grid vertices/UVs keeps
+        // tile edges in the same camera space as the captured texture.
+        const auto& screenProjection = state.getViewProjectionMatrix();
+        _nodeGrid->setScreenProjectionForBlit(_projectGridBlitToVisitingCamera ? &screenProjection : nullptr,
+                                              _director->getCanvasSize());
     }
 
-    onGridEndDraw();
+    // Blit with the grid camera's ortho VP matrix instead of the scene camera's
+    // VR perspective VP, which would warp the grid mesh.
+    SceneRenderState gridRenderState = gridCam ? SceneRenderState(state.getRenderer(), gridCam) : state;
+    onGridEndDraw(gridRenderState);
 
-    _director->popMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW);
+    if (_nodeGrid)
+        _nodeGrid->setScreenProjectionForBlit(nullptr, Vec2::zero);
 }
 
 void NodeGrid::setGrid(GridBase* grid)

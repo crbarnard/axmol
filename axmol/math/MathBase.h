@@ -27,6 +27,7 @@
 
 #include <memory>
 #include <string.h>
+#include <stdint.h>
 #include "axmol/platform/PlatformMacros.h"
 
 /**
@@ -69,6 +70,20 @@
 #    define NS_AX_MATH_END
 #    define USING_NS_AX_MATH
 #endif
+
+namespace ax
+{
+struct radians_tag
+{};
+
+struct bvec3
+{
+    bool x{false};
+    bool y{false};
+    bool z{false};
+};
+
+}  // namespace ax
 
 /**
  * end of base group

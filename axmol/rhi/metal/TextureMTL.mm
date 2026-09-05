@@ -27,7 +27,7 @@
 #include "axmol/rhi/metal/UtilsMTL.h"
 #include "axmol/base/Macros.h"
 #include "axmol/rhi/RHIUtils.h"
-#include "axmol/rhi/SamplerCache.h"
+#include "axmol/rhi/SamplerRegistry.h"
 
 namespace ax::rhi::mtl
 {
@@ -56,11 +56,52 @@ TextureImpl::TextureImpl(id<MTLDevice> mtlDevice, const TextureDesc& desc) : _mt
     updateTextureDesc(desc);
 }
 
-TextureImpl::~TextureImpl() {}
+TextureImpl::TextureImpl(id<MTLDevice> mtlDevice, id<MTLTexture> texture)
+    : _mtlDevice(mtlDevice), _mtlTexture([texture retain])
+{
+    _desc.width        = static_cast<uint16_t>(texture.width);
+    _desc.height       = static_cast<uint16_t>(texture.height);
+    _desc.textureType  = TextureType::TEXTURE_2D;
+    _desc.arraySize    = 1;
+    _desc.mipLevels    = 1;
+    _desc.textureUsage = TextureUsage::RENDER_TARGET;
+
+    switch (texture.pixelFormat)
+    {
+    case MTLPixelFormatRGBA8Unorm:
+    case MTLPixelFormatRGBA8Unorm_sRGB:
+        _desc.pixelFormat = PixelFormat::RGBA8;
+        break;
+    case MTLPixelFormatBGRA8Unorm:
+    case MTLPixelFormatBGRA8Unorm_sRGB:
+        _desc.pixelFormat = PixelFormat::BGRA8;
+        break;
+    case MTLPixelFormatR8Unorm:
+        _desc.pixelFormat = PixelFormat::R8;
+        break;
+    case MTLPixelFormatDepth32Float_Stencil8:
+        _desc.pixelFormat = PixelFormat::D24S8;
+        break;
+    default:
+        _desc.pixelFormat = PixelFormat::RGBA8;
+        break;
+    }
+
+    Texture::updateTextureDesc(_desc);
+}
+
+TextureImpl::~TextureImpl()
+{
+    if (_mtlTexture != nil)
+    {
+        [_mtlTexture release];
+        _mtlTexture = nil;
+    }
+}
 
 void TextureImpl::updateSamplerDesc(const SamplerDesc& desc)
 {
-    _mtlSamplerState = static_cast<id<MTLSamplerState>>(SamplerCache::getInstance()->getSampler(desc));
+    _mtlSamplerState = static_cast<id<MTLSamplerState>>(SamplerRegistry::getInstance()->getSampler(desc));
 }
 
 void TextureImpl::updateTextureDesc(const TextureDesc& desc)
@@ -109,7 +150,7 @@ void TextureImpl::updateSubData(int xoffset,
 void TextureImpl::updateCompressedData(const void* data,
                                        int width,
                                        int height,
-                                       std::size_t dataSize,
+                                       size_t dataSize,
                                        int level,
                                        int layerIndex)
 {
@@ -120,7 +161,7 @@ void TextureImpl::updateCompressedSubData(int xoffset,
                                           int yoffset,
                                           int width,
                                           int height,
-                                          std::size_t /*dataSize*/,
+                                          size_t /*dataSize*/,
                                           int level,
                                           const void* data,
                                           int layerIndex)

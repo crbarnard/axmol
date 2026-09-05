@@ -26,9 +26,9 @@ THE SOFTWARE.
 
 #include "Camera3DTest.h"
 #include "testResource.h"
-#include "axmol/ui/UISlider.h"
+#include "axmol/ui/Slider.h"
 #include "axmol/platform/FileUtils.h"
-#include "axmol/rhi/DriverContext.h"
+#include "axmol/rhi/GraphicsCore.h"
 #include "axmol/tlx/format.hpp"
 
 using namespace ax;
@@ -58,7 +58,33 @@ Camera3DTests::Camera3DTests()
     ADD_TEST_CASE(CameraArcBallDemo);
     // ADD_TEST_CASE(CameraFrameBufferTest); //TODO render target
     ADD_TEST_CASE(BackgroundColorBrushTest);
+    ADD_TEST_CASE(CameraCanvasResizeTest);
 }
+
+void CameraBaseTest::onEnter()
+{
+    TestCase::onEnter();
+
+    _lis                = PointerEventListener::create();
+    _lis->onPointerDown = AX_CALLBACK_1(CameraBaseTest::onPointerDown, this);
+    _lis->onPointerMove = AX_CALLBACK_1(CameraBaseTest::onPointerMove, this);
+    _lis->onPointerUp   = AX_CALLBACK_1(CameraBaseTest::onPointerUp, this);
+    _eventDispatcher->addEventListenerWithSceneGraphPriority(_lis, this);
+}
+
+CameraBaseTest::~CameraBaseTest()
+{
+    _eventDispatcher->removeEventListener(_lis);
+}
+
+bool CameraBaseTest::onPointerDown(ax::PointerEvent* /*event*/)
+{
+    return true;
+}
+
+void CameraBaseTest::onPointerMove(ax::PointerEvent* /*event*/) {}
+
+void CameraBaseTest::onPointerUp(ax::PointerEvent* /*event*/) {}
 
 //------------------------------------------------------------------
 //
@@ -91,14 +117,14 @@ CameraRotationTest::CameraRotationTest()
     // Yellow is at the back
     bill1 = BillBoard::create("Images/Icon.png");
     bill1->setPosition3D(Vec3(50.0f, 10.0f, -10.0f));
-    bill1->setColor(Color32::YELLOW);
+    bill1->setColor(Color32::yellow);
     bill1->setScale(0.6f);
     mesh->addChild(bill1);
 
     l1 = Label::create();
     l1->setPosition(Vec2(0.0f, -10.0f));
     l1->setString("Billboard1");
-    l1->setColor(Color32::WHITE);
+    l1->setColor(Color32::white);
     l1->setScale(3);
     bill1->addChild(l1);
 
@@ -114,7 +140,7 @@ CameraRotationTest::CameraRotationTest()
     l2 = Label::create();
     l2->setString("Billboard2");
     l2->setPosition(Vec2(0.0f, -10.0f));
-    l2->setColor(Color32::WHITE);
+    l2->setColor(Color32::white);
     l2->setScale(3);
     bill2->addChild(l2);
 
@@ -129,31 +155,25 @@ CameraRotationTest::CameraRotationTest()
     model->setPosition3D(Vec3(s.width / 2, s.height / 2, 0));
     addChild(model);
 
-    // Listener
-    _lis               = EventListenerTouchOneByOne::create();
-    _lis->onTouchBegan = [](Touch* t, Event* e) { return true; };
-
-    _lis->onTouchMoved = [this](Touch* t, Event* e) {
-        float dx = t->getDelta().x;
-        Vec3 rot = _camControlNode->getRotation3D();
-        rot.y += dx;
-        _camControlNode->setRotation3D(rot);
-
-        Vec3 worldPos;
-        _camNode->getNodeToWorldTransform().getTranslation(&worldPos);
-
-        Camera::getDefaultCamera()->setPosition3D(worldPos);
-        Camera::getDefaultCamera()->lookAt(_camControlNode->getPosition3D());
-    };
-
-    Director::getInstance()->getEventDispatcher()->addEventListenerWithSceneGraphPriority(_lis, this);
-
     schedule(AX_SCHEDULE_SELECTOR(CameraRotationTest::update));
 }
 
-CameraRotationTest::~CameraRotationTest()
+void CameraRotationTest::onPointerMove(ax::PointerEvent* event)
 {
-    Director::getInstance()->getEventDispatcher()->removeEventListener(_lis);
+    if (!event->isCaptured())
+        return;
+    event->stopPropagation();
+
+    float dx = (event->getWorldPoint() - event->getPrevWorldPoint()).x;
+    Vec3 rot = _camControlNode->getRotation3D();
+    rot.y += dx;
+    _camControlNode->setRotation3D(rot);
+
+    Vec3 worldPos;
+    _camNode->getNodeToWorldTransform().getTranslation(&worldPos);
+
+    Camera::getDefaultCamera()->setPosition3D(worldPos);
+    Camera::getDefaultCamera()->lookAt(_camControlNode->getPosition3D());
 }
 
 std::string CameraRotationTest::title() const
@@ -230,10 +250,10 @@ void Camera3DTestDemo::SwitchViewCallback(Object* sender, CameraType cameraType)
         _camera->setPosition3D(Vec3(0, 130, 130) + _mesh->getPosition3D());
         _camera->lookAt(_mesh->getPosition3D());
 
-        _RotateRightlabel->setColor(Color32::WHITE);
-        _RotateLeftlabel->setColor(Color32::WHITE);
-        _ZoomInlabel->setColor(Color32::WHITE);
-        _ZoomOutlabel->setColor(Color32::WHITE);
+        _RotateRightlabel->setColor(Color32::white);
+        _RotateLeftlabel->setColor(Color32::white);
+        _ZoomInlabel->setColor(Color32::white);
+        _ZoomOutlabel->setColor(Color32::white);
     }
     else if (_cameraType == CameraType::FirstPerson)
     {
@@ -243,32 +263,27 @@ void Camera3DTestDemo::SwitchViewCallback(Object* sender, CameraType cameraType)
         _camera->setPosition3D(Vec3(0, 35, 0) + _mesh->getPosition3D());
         _camera->lookAt(_mesh->getPosition3D() + newFaceDir * 50);
 
-        _RotateRightlabel->setColor(Color32::WHITE);
-        _RotateLeftlabel->setColor(Color32::WHITE);
-        _ZoomInlabel->setColor(Color32::GRAY);
-        _ZoomOutlabel->setColor(Color32::GRAY);
+        _RotateRightlabel->setColor(Color32::white);
+        _RotateLeftlabel->setColor(Color32::white);
+        _ZoomInlabel->setColor(Color32::gray);
+        _ZoomOutlabel->setColor(Color32::gray);
     }
     else if (_cameraType == CameraType::ThirdPerson)
     {
         _camera->setPosition3D(Vec3(0, 130, 130) + _mesh->getPosition3D());
         _camera->lookAt(_mesh->getPosition3D());
 
-        _RotateRightlabel->setColor(Color32::GRAY);
-        _RotateLeftlabel->setColor(Color32::GRAY);
-        _ZoomInlabel->setColor(Color32::WHITE);
-        _ZoomOutlabel->setColor(Color32::WHITE);
+        _RotateRightlabel->setColor(Color32::gray);
+        _RotateLeftlabel->setColor(Color32::gray);
+        _ZoomInlabel->setColor(Color32::white);
+        _ZoomOutlabel->setColor(Color32::white);
     }
 }
 void Camera3DTestDemo::onEnter()
 {
     CameraBaseTest::onEnter();
-    _mesh                    = nullptr;
-    auto s                   = Director::getInstance()->getCanvasSize();
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesBegan = AX_CALLBACK_2(Camera3DTestDemo::onTouchesBegan, this);
-    listener->onTouchesMoved = AX_CALLBACK_2(Camera3DTestDemo::onTouchesMoved, this);
-    listener->onTouchesEnded = AX_CALLBACK_2(Camera3DTestDemo::onTouchesEnded, this);
-    _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
+    _mesh        = nullptr;
+    auto s       = Director::getInstance()->getCanvasSize();
     auto layer3D = Layer::create();
     addChild(layer3D, 0);
     _layer3D  = layer3D;
@@ -282,11 +297,10 @@ void Camera3DTestDemo::onEnter()
     containerForLabel1->addChild(_ZoomOutlabel);
     addChild(containerForLabel1, 10);
 
-    auto listener1 = EventListenerTouchOneByOne::create();
-    listener1->setSwallowTouches(true);
+    auto listener1 = PointerEventListener::create();
 
-    listener1->onTouchBegan = AX_CALLBACK_2(Camera3DTestDemo::onTouchesZoomOut, this);
-    listener1->onTouchEnded = AX_CALLBACK_2(Camera3DTestDemo::onTouchesZoomOutEnd, this);
+    listener1->onPointerDown = AX_CALLBACK_1(Camera3DTestDemo::onPointerZoomOut, this);
+    listener1->onPointerUp   = AX_CALLBACK_1(Camera3DTestDemo::onPointerZoomOutEnd, this);
 
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener1, _ZoomOutlabel);
 
@@ -296,11 +310,10 @@ void Camera3DTestDemo::onEnter()
     containerForLabel2->addChild(_ZoomInlabel);
     addChild(containerForLabel2, 10);
 
-    auto listener2 = EventListenerTouchOneByOne::create();
-    listener2->setSwallowTouches(true);
+    auto listener2 = PointerEventListener::create();
 
-    listener2->onTouchBegan = AX_CALLBACK_2(Camera3DTestDemo::onTouchesZoomIn, this);
-    listener2->onTouchEnded = AX_CALLBACK_2(Camera3DTestDemo::onTouchesZoomInEnd, this);
+    listener2->onPointerDown = AX_CALLBACK_1(Camera3DTestDemo::onPointerZoomIn, this);
+    listener2->onPointerUp   = AX_CALLBACK_1(Camera3DTestDemo::onPointerZoomInEnd, this);
 
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener2, _ZoomInlabel);
 
@@ -310,11 +323,10 @@ void Camera3DTestDemo::onEnter()
     containerForLabel3->addChild(_RotateLeftlabel);
     addChild(containerForLabel3, 10);
 
-    auto listener3 = EventListenerTouchOneByOne::create();
-    listener3->setSwallowTouches(true);
+    auto listener3 = PointerEventListener::create();
 
-    listener3->onTouchBegan = AX_CALLBACK_2(Camera3DTestDemo::onTouchesRotateLeft, this);
-    listener3->onTouchEnded = AX_CALLBACK_2(Camera3DTestDemo::onTouchesRotateLeftEnd, this);
+    listener3->onPointerDown = AX_CALLBACK_1(Camera3DTestDemo::onPointerRotateLeft, this);
+    listener3->onPointerUp   = AX_CALLBACK_1(Camera3DTestDemo::onPointerRotateLeftEnd, this);
 
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener3, _RotateLeftlabel);
 
@@ -324,11 +336,10 @@ void Camera3DTestDemo::onEnter()
     containerForLabel4->addChild(_RotateRightlabel);
     addChild(containerForLabel4, 10);
 
-    auto listener4 = EventListenerTouchOneByOne::create();
-    listener4->setSwallowTouches(true);
+    auto listener4 = PointerEventListener::create();
 
-    listener4->onTouchBegan = AX_CALLBACK_2(Camera3DTestDemo::onTouchesRotateRight, this);
-    listener4->onTouchEnded = AX_CALLBACK_2(Camera3DTestDemo::onTouchesRotateRightEnd, this);
+    listener4->onPointerDown = AX_CALLBACK_1(Camera3DTestDemo::onPointerRotateRight, this);
+    listener4->onPointerUp   = AX_CALLBACK_1(Camera3DTestDemo::onPointerRotateRightEnd, this);
 
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener4, _RotateRightlabel);
 
@@ -343,7 +354,7 @@ void Camera3DTestDemo::onEnter()
         label3, AX_CALLBACK_1(Camera3DTestDemo::SwitchViewCallback, this, CameraType::FirstPerson));
     auto menu = Menu::create(menuItem1, menuItem2, menuItem3, nullptr);
 
-    menu->setPosition(Vec2::ZERO);
+    menu->setPosition(Vec2::zero);
 
     menuItem1->setPosition(VisibleRect::left().x + 100, VisibleRect::top().y - 50);
     menuItem2->setPosition(VisibleRect::left().x + 100, VisibleRect::top().y - 100);
@@ -352,7 +363,8 @@ void Camera3DTestDemo::onEnter()
     schedule(AX_SCHEDULE_SELECTOR(Camera3DTestDemo::updateCamera), 0.0f);
     if (_camera == nullptr)
     {
-        _camera = Camera::createPerspective(60, (float)s.width / s.height, 1, 1000);
+        _camera = Camera::create();
+        _camera->configurePerspective(60, (float)s.width / s.height, 1, 1000);
         _camera->setCameraFlag(CameraFlag::USER1);
         _layer3D->addChild(_camera);
     }
@@ -410,33 +422,36 @@ void Camera3DTestDemo::addNewSpriteWithCoords(Vec3 p,
     }
     mesh->setScale(scale);
 }
-void Camera3DTestDemo::onTouchesBegan(const std::vector<Touch*>& touches, ax::Event* event) {}
-void Camera3DTestDemo::onTouchesMoved(const std::vector<Touch*>& touches, ax::Event* event)
+bool Camera3DTestDemo::onPointerDown(ax::PointerEvent* event)
 {
-    if (touches.size() == 1)
+    return CameraBaseTest::onPointerDown(event);
+}
+void Camera3DTestDemo::onPointerMove(ax::PointerEvent* event)
+{
+    if (!event->isCaptured())
+        return;
+    event->stopPropagation();
+
+    auto location = event->getWorldPoint();
+    Point newPos  = event->getPrevWorldPoint() - location;
+    if (_cameraType == CameraType::Free || _cameraType == CameraType::FirstPerson)
     {
-        auto touch    = touches[0];
-        auto location = touch->getLocation();
-        Point newPos  = touch->getPreviousLocation() - location;
-        if (_cameraType == CameraType::Free || _cameraType == CameraType::FirstPerson)
+        Vec3 cameraDir;
+        Vec3 cameraRightDir;
+        _camera->getNodeToWorldTransform().getForwardVector(&cameraDir);
+        cameraDir.normalize();
+        cameraDir.y = 0;
+        _camera->getNodeToWorldTransform().getRightVector(&cameraRightDir);
+        cameraRightDir.normalize();
+        cameraRightDir.y = 0;
+        Vec3 cameraPos   = _camera->getPosition3D();
+        cameraPos += cameraDir * newPos.y * 0.1f;
+        cameraPos += cameraRightDir * newPos.x * 0.1f;
+        _camera->setPosition3D(cameraPos);
+        if (_mesh && _cameraType == CameraType::FirstPerson)
         {
-            Vec3 cameraDir;
-            Vec3 cameraRightDir;
-            _camera->getNodeToWorldTransform().getForwardVector(&cameraDir);
-            cameraDir.normalize();
-            cameraDir.y = 0;
-            _camera->getNodeToWorldTransform().getRightVector(&cameraRightDir);
-            cameraRightDir.normalize();
-            cameraRightDir.y = 0;
-            Vec3 cameraPos   = _camera->getPosition3D();
-            cameraPos += cameraDir * newPos.y * 0.1f;
-            cameraPos += cameraRightDir * newPos.x * 0.1f;
-            _camera->setPosition3D(cameraPos);
-            if (_mesh && _cameraType == CameraType::FirstPerson)
-            {
-                _mesh->setPosition3D(Vec3(_camera->getPositionX(), 0, _camera->getPositionZ()));
-                _targetPos = _mesh->getPosition3D();
-            }
+            _mesh->setPosition3D(Vec3(_camera->getPositionX(), 0, _camera->getPositionZ()));
+            _targetPos = _mesh->getPosition3D();
         }
     }
 }
@@ -490,12 +505,12 @@ void Camera3DTestDemo::updateState(float elapsedTime)
         }
     }
 }
-void Camera3DTestDemo::onTouchesEnded(const std::vector<Touch*>& touches, ax::Event* event)
+void Camera3DTestDemo::onPointerUp(ax::PointerEvent* event)
 {
-    for (auto& item : touches)
+    CameraBaseTest::onPointerUp(event);
+
     {
-        auto touch    = item;
-        auto location = touch->getLocationInView();
+        auto location = event->getPoint();
         if (_camera)
         {
             if (_mesh && _cameraType == CameraType::ThirdPerson && _bZoomOut == false && _bZoomIn == false &&
@@ -503,9 +518,9 @@ void Camera3DTestDemo::onTouchesEnded(const std::vector<Touch*>& touches, ax::Ev
             {
                 Vec3 nearP(location.x, location.y, -1.0f), farP(location.x, location.y, 1.0f);
 
-                auto size = Director::getInstance()->getCanvasSize();
-                nearP     = _camera->unproject(nearP);
-                farP      = _camera->unproject(farP);
+                // auto size = Director::getInstance()->getCanvasSize();
+                nearP = _camera->deprojectScreenToWorld(nearP);
+                farP  = _camera->deprojectScreenToWorld(farP);
                 Vec3 dir(farP - nearP);
                 float dist = 0.0f;
                 float ndd  = Vec3::dot(Vec3(0, 1, 0), dir);
@@ -529,7 +544,7 @@ void Camera3DTestDemo::onTouchesEnded(const std::vector<Touch*>& touches, ax::Ev
         }
     }
 }
-void onTouchesCancelled(const std::vector<Touch*>& touches, ax::Event* event) {}
+
 void Camera3DTestDemo::updateCamera(float fDelta)
 {
     if (_mesh)
@@ -648,11 +663,11 @@ void Camera3DTestDemo::updateCamera(float fDelta)
         }
     }
 }
-bool Camera3DTestDemo::onTouchesCommon(Touch* touch, Event* event, bool* touchProperty)
+bool Camera3DTestDemo::onPointerCommon(PointerEvent* event, bool* touchProperty)
 {
     auto target = static_cast<Label*>(event->getCurrentTarget());
 
-    Vec2 locationInNode = target->convertToNodeSpace(touch->getLocation());
+    Vec2 locationInNode = target->convertToNodeSpace(event->getWorldPoint());
     Size s              = target->getContentSize();
     Rect rect           = Rect(0, 0, s.width, s.height);
 
@@ -667,35 +682,35 @@ bool Camera3DTestDemo::isState(unsigned int state, unsigned int bit) const
 {
     return (state & bit) == bit;
 }
-bool Camera3DTestDemo::onTouchesZoomOut(Touch* touch, Event* event)
+bool Camera3DTestDemo::onPointerZoomOut(PointerEvent* event)
 {
-    return Camera3DTestDemo::onTouchesCommon(touch, event, &_bZoomOut);
+    return Camera3DTestDemo::onPointerCommon(event, &_bZoomOut);
 }
-void Camera3DTestDemo::onTouchesZoomOutEnd(Touch* touch, Event* event)
+void Camera3DTestDemo::onPointerZoomOutEnd(PointerEvent* event)
 {
     _bZoomOut = false;
 }
-bool Camera3DTestDemo::onTouchesZoomIn(Touch* touch, Event* event)
+bool Camera3DTestDemo::onPointerZoomIn(PointerEvent* event)
 {
-    return Camera3DTestDemo::onTouchesCommon(touch, event, &_bZoomIn);
+    return Camera3DTestDemo::onPointerCommon(event, &_bZoomIn);
 }
-void Camera3DTestDemo::onTouchesZoomInEnd(Touch* touch, Event* event)
+void Camera3DTestDemo::onPointerZoomInEnd(PointerEvent* event)
 {
     _bZoomIn = false;
 }
-bool Camera3DTestDemo::onTouchesRotateLeft(Touch* touch, Event* event)
+bool Camera3DTestDemo::onPointerRotateLeft(PointerEvent* event)
 {
-    return Camera3DTestDemo::onTouchesCommon(touch, event, &_bRotateLeft);
+    return Camera3DTestDemo::onPointerCommon(event, &_bRotateLeft);
 }
-void Camera3DTestDemo::onTouchesRotateLeftEnd(Touch* touch, Event* event)
+void Camera3DTestDemo::onPointerRotateLeftEnd(PointerEvent* event)
 {
     _bRotateLeft = false;
 }
-bool Camera3DTestDemo::onTouchesRotateRight(Touch* touch, Event* event)
+bool Camera3DTestDemo::onPointerRotateRight(PointerEvent* event)
 {
-    return Camera3DTestDemo::onTouchesCommon(touch, event, &_bRotateRight);
+    return Camera3DTestDemo::onPointerCommon(event, &_bRotateRight);
 }
-void Camera3DTestDemo::onTouchesRotateRightEnd(Touch* touch, Event* event)
+void Camera3DTestDemo::onPointerRotateRightEnd(PointerEvent* event)
 {
     _bRotateRight = false;
 }
@@ -725,12 +740,7 @@ void CameraCullingDemo::onEnter()
 
     schedule(AX_SCHEDULE_SELECTOR(CameraCullingDemo::update), 0.0f);
 
-    auto s = Director::getInstance()->getCanvasSize();
-    /*auto listener = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesBegan = AX_CALLBACK_2(Camera3DTestDemo::onTouchesBegan, this);
-    listener->onTouchesMoved = AX_CALLBACK_2(Camera3DTestDemo::onTouchesMoved, this);
-    listener->onTouchesEnded = AX_CALLBACK_2(Camera3DTestDemo::onTouchesEnded, this);
-    _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);*/
+    auto s       = Director::getInstance()->getCanvasSize();
     auto layer3D = Layer::create();
     addChild(layer3D, 0);
     _layer3D = layer3D;
@@ -742,7 +752,7 @@ void CameraCullingDemo::onEnter()
     auto menuItem1 = MenuItemFont::create("Switch Camera", AX_CALLBACK_1(CameraCullingDemo::switchViewCallback, this));
     menuItem1->setColor(Color32(0, 200, 20));
     auto menu = Menu::create(menuItem1, nullptr);
-    menu->setPosition(Vec2::ZERO);
+    menu->setPosition(Vec2::zero);
     menuItem1->setPosition(VisibleRect::left().x + 80, VisibleRect::top().y - 70);
     addChild(menu, 1);
 
@@ -836,7 +846,8 @@ void CameraCullingDemo::switchViewCallback(Object* sender)
 
     if (_cameraFirst == nullptr)
     {
-        _cameraFirst = Camera::createPerspective(30.0f, (float)s.width / s.height, 10.0f, 200.0f);
+        _cameraFirst = Camera::create();
+        _cameraFirst->configurePerspective(30.0f, (float)s.width / s.height, 10.0f, 200.0f);
         _cameraFirst->setCameraFlag(CameraFlag::USER8);
         _cameraFirst->setPosition3D(Vec3(-100.0f, 0.0f, 0.0f));
         _cameraFirst->lookAt(Vec3(1000.0f, 0.0f, 0.0f));
@@ -851,7 +862,8 @@ void CameraCullingDemo::switchViewCallback(Object* sender)
 
     if (_cameraThird == nullptr)
     {
-        _cameraThird = Camera::createPerspective(60, (float)s.width / s.height, 1, 1000);
+        _cameraThird = Camera::create();
+        _cameraThird->configurePerspective(60, (float)s.width / s.height, 1, 1000);
         _cameraThird->setCameraFlag(CameraFlag::USER8);
         _cameraThird->setPosition3D(Vec3(0.0f, 130.0f, 130.0f));
         _cameraThird->lookAt(Vec3(0, 0, 0));
@@ -940,30 +952,30 @@ void CameraCullingDemo::drawCameraFrustum()
     // top-left
     Vec3 tl_0, tl_1;
     Vec3 src(0, 0, 0);
-    tl_0 = _cameraFirst->unproject(src);
+    tl_0 = _cameraFirst->deprojectScreenToWorld(src);
     src  = Vec3(0, 0, 1);
-    tl_1 = _cameraFirst->unproject(src);
+    tl_1 = _cameraFirst->deprojectScreenToWorld(src);
 
     // top-right
     Vec3 tr_0, tr_1;
     src  = Vec3(size.width, 0, 0);
-    tr_0 = _cameraFirst->unproject(src);
+    tr_0 = _cameraFirst->deprojectScreenToWorld(src);
     src  = Vec3(size.width, 0, 1);
-    tr_1 = _cameraFirst->unproject(src);
+    tr_1 = _cameraFirst->deprojectScreenToWorld(src);
 
     // bottom-left
     Vec3 bl_0, bl_1;
     src  = Vec3(0, size.height, 0);
-    bl_0 = _cameraFirst->unproject(src);
+    bl_0 = _cameraFirst->deprojectScreenToWorld(src);
     src  = Vec3(0, size.height, 1);
-    bl_1 = _cameraFirst->unproject(src);
+    bl_1 = _cameraFirst->deprojectScreenToWorld(src);
 
     // bottom-right
     Vec3 br_0, br_1;
     src  = Vec3(size.width, size.height, 0);
-    br_0 = _cameraFirst->unproject(src);
+    br_0 = _cameraFirst->deprojectScreenToWorld(src);
     src  = Vec3(size.width, size.height, 1);
-    br_1 = _cameraFirst->unproject(src);
+    br_1 = _cameraFirst->deprojectScreenToWorld(src);
 
     _drawFrustum->drawLine(tl_0, tl_1, color);
     _drawFrustum->drawLine(tr_0, tr_1, color);
@@ -1009,10 +1021,7 @@ void CameraArcBallDemo::onEnter()
     CameraBaseTest::onEnter();
     _rotationQuat.set(0.0f, 0.0f, 0.0f, 1.0f);
     schedule(AX_SCHEDULE_SELECTOR(CameraArcBallDemo::update), 0.0f);
-    auto s                   = Director::getInstance()->getCanvasSize();
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesMoved = AX_CALLBACK_2(CameraArcBallDemo::onTouchsMoved, this);
-    _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
+    auto s = Director::getInstance()->getCanvasSize();
 
     // switch camera
     MenuItemFont::setFontName("fonts/arial.ttf");
@@ -1025,7 +1034,7 @@ void CameraArcBallDemo::onEnter()
         MenuItemFont::create("Switch Target", AX_CALLBACK_1(CameraArcBallDemo::switchTargetCallback, this));
     menuItem2->setColor(Color32(0, 200, 20));
     auto menu = Menu::create(menuItem1, menuItem2, nullptr);
-    menu->setPosition(Vec2::ZERO);
+    menu->setPosition(Vec2::zero);
     menuItem1->setPosition(VisibleRect::left().x + 80, VisibleRect::top().y - 70);
     menuItem2->setPosition(VisibleRect::left().x + 80, VisibleRect::top().y - 100);
     addChild(menu, 1);
@@ -1036,7 +1045,8 @@ void CameraArcBallDemo::onEnter()
 
     if (_camera == nullptr)
     {
-        _camera = Camera::createPerspective(60, (float)s.width / s.height, 1, 1000);
+        _camera = Camera::create();
+        _camera->configurePerspective(60, (float)s.width / s.height, 1, 1000);
         _camera->setCameraFlag(CameraFlag::USER1);
         _camera->setPosition3D(Vec3(0.0f, 10.0f, 50.0f));
         _camera->lookAt(Vec3(0, 0, 0), Vec3(0.0f, 1.0f, 0.0f));
@@ -1086,36 +1096,37 @@ void CameraArcBallDemo::onExit()
     }
 }
 
-void CameraArcBallDemo::onTouchsMoved(const std::vector<Touch*>& touchs, Event* event)
+void CameraArcBallDemo::onPointerMove(PointerEvent* event)
 {
-    if (!touchs.empty())
+    if (!event->isCaptured())
+        return;
+    event->stopPropagation();
+
+    if (_operate == OperateCamType::RotateCamera)  // arc ball rotate
     {
-        if (_operate == OperateCamType::RotateCamera)  // arc ball rotate
-        {
-            Size visibleSize = Director::getInstance()->getVisibleSize();
-            Vec2 prelocation = touchs[0]->getPreviousLocationInView();
-            Vec2 location    = touchs[0]->getLocationInView();
-            location.x       = 2.0f * (location.x) / (visibleSize.width) - 1.0f;
-            location.y       = 2.0f * (visibleSize.height - location.y) / (visibleSize.height) - 1.0f;
-            prelocation.x    = 2.0f * (prelocation.x) / (visibleSize.width) - 1.0f;
-            prelocation.y    = 2.0f * (visibleSize.height - prelocation.y) / (visibleSize.height) - 1.0f;
+        Size visibleSize = Director::getInstance()->getVisibleSize();
+        Vec2 prelocation = event->getPrevPoint();
+        Vec2 location    = event->getPoint();
+        location.x       = 2.0f * (location.x) / (visibleSize.width) - 1.0f;
+        location.y       = 2.0f * (visibleSize.height - location.y) / (visibleSize.height) - 1.0f;
+        prelocation.x    = 2.0f * (prelocation.x) / (visibleSize.width) - 1.0f;
+        prelocation.y    = 2.0f * (visibleSize.height - prelocation.y) / (visibleSize.height) - 1.0f;
 
-            Vec3 axes;
-            float angle;
-            calculateArcBall(axes, angle, prelocation.x, prelocation.y, location.x,
-                             location.y);  // calculate  rotation quaternion parameters
-            Quaternion quat(axes, angle);  // get rotation quaternion
-            _rotationQuat = quat * _rotationQuat;
+        Vec3 axes;
+        float angle;
+        calculateArcBall(axes, angle, prelocation.x, prelocation.y, location.x,
+                         location.y);  // calculate  rotation quaternion parameters
+        Quat quat(axes, angle);        // get rotation quaternion
+        _rotationQuat = quat * _rotationQuat;
 
-            updateCameraTransform();  // update camera Transform
-        }
-        else if (_operate == OperateCamType::MoveCamera)  // camera zoom
-        {
-            Point newPos = touchs[0]->getPreviousLocation() - touchs[0]->getLocation();
-            _distanceZ -= newPos.y * 0.1f;
+        updateCameraTransform();  // update camera Transform
+    }
+    else if (_operate == OperateCamType::MoveCamera)  // camera zoom
+    {
+        Point newPos = event->getPrevWorldPoint() - event->getWorldPoint();
+        _distanceZ -= newPos.y * 0.1f;
 
-            updateCameraTransform();
-        }
+        updateCameraTransform();
     }
 }
 
@@ -1224,10 +1235,7 @@ void FogTestDemo::onEnter()
     schedule(AX_SCHEDULE_SELECTOR(FogTestDemo::update), 0.0f);
     Director::getInstance()->setClearColor(Color(0.5, 0.5, 0.5, 1));
 
-    auto s                   = Director::getInstance()->getCanvasSize();
-    auto listener            = EventListenerTouchAllAtOnce::create();
-    listener->onTouchesMoved = AX_CALLBACK_2(FogTestDemo::onTouchesMoved, this);
-    _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
+    auto s = Director::getInstance()->getCanvasSize();
 
     // switch fog type
     TTFConfig ttfConfig("fonts/arial.ttf", 20);
@@ -1240,7 +1248,7 @@ void FogTestDemo::onEnter()
     auto menuItem3 = MenuItemLabel::create(label3, AX_CALLBACK_1(FogTestDemo::switchTypeCallback, this, 2));
     auto menu      = Menu::create(menuItem1, menuItem2, menuItem3, nullptr);
 
-    menu->setPosition(Vec2::ZERO);
+    menu->setPosition(Vec2::zero);
 
     menuItem1->setPosition(VisibleRect::left().x + 60, VisibleRect::top().y - 50);
     menuItem2->setPosition(VisibleRect::left().x + 60, VisibleRect::top().y - 100);
@@ -1286,7 +1294,8 @@ void FogTestDemo::onEnter()
 
     if (_camera == nullptr)
     {
-        _camera = Camera::createPerspective(60, (float)s.width / s.height, 1, 1000);
+        _camera = Camera::create();
+        _camera->configurePerspective(60, (float)s.width / s.height, 1, 1000);
         _camera->setCameraFlag(CameraFlag::USER1);
         _camera->setPosition3D(Vec3(0.0f, 30.0f, 40.0f));
         _camera->lookAt(Vec3(0, 0, 0), Vec3(0.0f, 1.0f, 0.0f));
@@ -1296,7 +1305,7 @@ void FogTestDemo::onEnter()
     _layer3D->setCameraMask(2);
 
 #if (AX_TARGET_PLATFORM == AX_PLATFORM_ANDROID)
-    _backToForegroundListener = EventListenerCustom::create(EVENT_RENDERER_RECREATED, [this](EventCustom*) {
+    _backToForegroundListener = CustomEventListener::create(EVENT_RENDERER_RECREATED, [this](CustomEvent*) {
         Director::getInstance()->setClearColor(Color(0.5, 0.5, 0.5, 1));
         AX_SAFE_RELEASE_NULL(_programState1);
         AX_SAFE_RELEASE_NULL(_programState2);
@@ -1374,28 +1383,29 @@ void FogTestDemo::onExit()
 
 void FogTestDemo::update(float dt) {}
 
-void FogTestDemo::onTouchesMoved(const std::vector<Touch*>& touches, ax::Event* event)
+void FogTestDemo::onPointerMove(ax::PointerEvent* event)
 {
-    if (touches.size() == 1)
+    if (!event->isCaptured())
+        return;
+    event->stopPropagation();
+
+    Vec2 prelocation = event->getPrevPoint();
+    Vec2 location    = event->getPoint();
+    Vec2 newPos      = prelocation - location;
+    if (_cameraType == CameraType::Free)
     {
-        Vec2 prelocation = touches[0]->getPreviousLocationInView();
-        Vec2 location    = touches[0]->getLocationInView();
-        Vec2 newPos      = prelocation - location;
-        if (_cameraType == CameraType::Free)
-        {
-            Vec3 cameraDir;
-            Vec3 cameraRightDir;
-            _camera->getNodeToWorldTransform().getForwardVector(&cameraDir);
-            cameraDir.normalize();
-            cameraDir.y = 0;
-            _camera->getNodeToWorldTransform().getRightVector(&cameraRightDir);
-            cameraRightDir.normalize();
-            cameraRightDir.y = 0;
-            Vec3 cameraPos   = _camera->getPosition3D();
-            cameraPos -= cameraDir * newPos.y * 0.1f;
-            cameraPos += cameraRightDir * newPos.x * 0.1f;
-            _camera->setPosition3D(cameraPos);
-        }
+        Vec3 cameraDir;
+        Vec3 cameraRightDir;
+        _camera->getNodeToWorldTransform().getForwardVector(&cameraDir);
+        cameraDir.normalize();
+        cameraDir.y = 0;
+        _camera->getNodeToWorldTransform().getRightVector(&cameraRightDir);
+        cameraRightDir.normalize();
+        cameraRightDir.y = 0;
+        Vec3 cameraPos   = _camera->getPosition3D();
+        cameraPos -= cameraDir * newPos.y * 0.1f;
+        cameraPos += cameraRightDir * newPos.x * 0.1f;
+        _camera->setPosition3D(cameraPos);
     }
 }
 
@@ -1457,7 +1467,7 @@ void FogTestDemo::onTouchesMoved(const std::vector<Touch*>& touches, ax::Event* 
 //                                              )
 //                        );
 //
-//     auto camera = Camera::create();
+//     auto camera = Camera::create(CameraMode::Classic);
 //     camera->setCameraFlag(CameraFlag::USER1);
 //     camera->setDepth(-1);
 //     camera->setFrameBufferObject(fbo);
@@ -1487,9 +1497,10 @@ void BackgroundColorBrushTest::onEnter()
 
     {
         // 1st Camera
-        auto camera = Camera::createPerspective(60.0f, (float)s.width / s.height, 1.0f, 1000.0f);
+        auto camera = Camera::create();
+        camera->configurePerspective(60.0f, (float)s.width / s.height, 1.0f, 1000.0f);
         camera->setPosition3D(Vec3(0.0f, 0.0f, 200.0f));
-        camera->lookAt(Vec3::ZERO);
+        camera->lookAt(Vec3::zero);
         camera->setDepth(-2);
         camera->setCameraFlag(CameraFlag::USER1);
         addChild(camera);
@@ -1511,11 +1522,12 @@ void BackgroundColorBrushTest::onEnter()
         addChild(base);
 
         // 2nd Camera
-        auto camera     = Camera::createPerspective(60, (float)s.width / s.height, 1, 1000);
+        auto camera = Camera::create();
+        camera->configurePerspective(60, (float)s.width / s.height, 1, 1000);
         auto colorBrush = CameraBackgroundBrush::createColorBrush(Color(.1f, .1f, 1.f, .5f), 1.f);
         camera->setBackgroundBrush(colorBrush);
         camera->setPosition3D(Vec3(0.0f, 0.0f, 200.0f));
-        camera->lookAt(Vec3::ZERO);
+        camera->lookAt(Vec3::zero);
         camera->setDepth(-1);
         camera->setCameraFlag(CameraFlag::USER2);
         base->addChild(camera);
@@ -1541,4 +1553,133 @@ void BackgroundColorBrushTest::onEnter()
         base->addChild(model);
         model->runAction(RepeatForever::create(RotateBy::create(1.f, Vec3(10.0f, 20.0f, 30.0f))));
     }
+}
+
+bool CameraCanvasResizeTest::init()
+{
+    if (!TestCase::init())
+        return false;
+
+    auto* director = Director::getInstance();
+    auto* view     = director->getRenderView();
+
+    _savedDesignSize = view->getDesignResolutionSize();
+    _savedPolicy     = view->getResolutionPolicy();
+
+    _oldCanvas = director->getCanvasSize();
+    _newCanvas = _oldCanvas * 1.5f;
+
+    AXASSERT(_oldCanvas.width > 0.0f && _oldCanvas.height > 0.0f, "Invalid initial Canvas size");
+
+    AXASSERT(_newCanvas.width > _oldCanvas.width && _newCanvas.height > _oldCanvas.height,
+             "The new Canvas must be larger than the old Canvas");
+
+    AXLOGI("Old Canvas: {} x {}", _oldCanvas.width, _oldCanvas.height);
+    AXLOGI("New Canvas: {} x {}", _newCanvas.width, _newCanvas.height);
+
+    createGuides();
+    createToggleButton();
+    updateStatusLabel();
+
+    return true;
+}
+
+void CameraCanvasResizeTest::onExit()
+{
+    auto* view = Director::getInstance()->getRenderView();
+
+    if (_savedDesignSize.width > 0.0f && _savedDesignSize.height > 0.0f && _savedPolicy != ResolutionPolicy::UNKNOWN)
+    {
+        view->setDesignResolutionSize(_savedDesignSize.width, _savedDesignSize.height, _savedPolicy);
+    }
+
+    TestCase::onExit();
+}
+
+void CameraCanvasResizeTest::createGuides()
+{
+    // Keep both guides in exactly the same DrawNode so that they cannot
+    // receive different parent transforms.
+    auto* guides = DrawNode::create();
+
+    constexpr float inset = 6.0f;
+
+    // Old Canvas: red.
+    guides->drawRect(Vec2(inset, inset), _oldCanvas - Vec2(inset, inset), Color::red, 6.0f);
+
+    drawCross(guides, _oldCanvas * 0.5f, 35.0f, Color::red);
+
+    // New Canvas: green.
+    guides->drawRect(Vec2::zero, _newCanvas, Color::green, 6.0f);
+
+    drawCross(guides, _newCanvas * 0.5f, 35.0f, Color::green);
+
+    addChild(guides, -100);
+}
+
+void CameraCanvasResizeTest::createToggleButton()
+{
+    auto* label = Label::createWithTTF("Toggle Canvas", "fonts/arial.ttf", 24.0f);
+
+    auto* item = MenuItemLabel::create(label, [this](Object*) { toggleCanvas(); });
+
+    auto* menu = Menu::create(item, nullptr);
+
+    // Put the button near the old Canvas center so it is initially visible.
+    menu->setPosition(_oldCanvas.width * 0.5f, _oldCanvas.height * 0.15f);
+
+    addChild(menu, 100);
+}
+
+void CameraCanvasResizeTest::updateStatusLabel()
+{
+    if (!_statusLabel)
+    {
+        _statusLabel = Label::createWithTTF("", "fonts/arial.ttf", 20.0f);
+
+        _statusLabel->setAnchorPoint(Vec2(0.5f, 1.0f));
+        _statusLabel->setPosition(_oldCanvas.width * 0.5f, _oldCanvas.height - 20.0f);
+
+        addChild(_statusLabel, 100);
+    }
+
+    const auto currentCanvas = Director::getInstance()->getCanvasSize();
+
+    _statusLabel->setString(fmt::format(
+        "{}\nCurrent Canvas: {:.0f} x {:.0f}\n"
+        "red = old Canvas, green = new Canvas",
+        _usingNewCanvas ? "NEW CANVAS REQUESTED" : "INITIAL OLD CANVAS", currentCanvas.width, currentCanvas.height));
+}
+
+void CameraCanvasResizeTest::toggleCanvas()
+{
+    auto* view = Director::getInstance()->getRenderView();
+
+    _usingNewCanvas = !_usingNewCanvas;
+
+    const Vec2 target = _usingNewCanvas ? _newCanvas : _oldCanvas;
+
+    AXLOGI("Request Canvas: {} x {}", target.width, target.height);
+
+    view->setDesignResolutionSize(target.width, target.height, ResolutionPolicy::EXACT_FIT);
+
+    const Vec2 actual = Director::getInstance()->getCanvasSize();
+
+    auto* camera = Director::getInstance()->getRunningScene()->getDefaultCamera();
+
+    const Vec3 cameraPosition = camera->getPosition3D();
+
+    AXLOGI("Actual Canvas: {} x {}, Camera: ({}, {}, {})", actual.width, actual.height, cameraPosition.x,
+           cameraPosition.y, cameraPosition.z);
+
+    updateStatusLabel();
+}
+
+void CameraCanvasResizeTest::drawCross(DrawNode* node, const Vec2& center, float radius, const ax::Color& color)
+{
+    node->drawLine(center - Vec2(radius, 0.0f), center + Vec2(radius, 0.0f), color, 6.0f);
+
+    node->drawLine(center - Vec2(0.0f, radius), center + Vec2(0.0f, radius), color, 6.0f);
+
+    node->drawCircle(center, radius * 0.5f, color, 6.0f);
 }

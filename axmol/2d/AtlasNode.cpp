@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include "axmol/base/Director.h"
 #include "axmol/renderer/TextureCache.h"
 #include "axmol/base/Utils.h"
+#include "axmol/scene/Camera.h"
 #include "axmol/renderer/Shaders.h"
 #include "axmol/renderer/Renderer.h"
 #include "axmol/rhi/ProgramState.h"
@@ -73,7 +74,7 @@ bool AtlasNode::initWithTexture(Texture2D* texture, int tileWidth, int tileHeigh
     _itemWidth  = tileWidth;
     _itemHeight = tileHeight;
 
-    _colorUnmodified    = Color32::WHITE;
+    _colorUnmodified    = Color32::white;
     _isOpacityModifyRGB = true;
 
     _blendFunc = BlendFunc::ALPHA_PREMULTIPLIED;
@@ -116,7 +117,7 @@ void AtlasNode::calculateMaxItems()
 
     if (_ignoreContentScaleFactor)
     {
-        s = _textureAtlas->getTexture()->getContentSizeInPixels();
+        s = _textureAtlas->getTexture()->getPixelSize();
     }
 
     _itemsPerColumn = (int)(s.height / _itemHeight);
@@ -129,19 +130,19 @@ void AtlasNode::updateAtlasValues()
 }
 
 // AtlasNode - draw
-void AtlasNode::draw(Renderer* renderer, const Mat4& transform, uint32_t flags)
+void AtlasNode::draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags)
 {
     if (_textureAtlas->getTotalQuads() == 0)
         return;
 
     auto programState = _quadCommand.unsafePS();
 
-    const auto& projectionMat = _director->getMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_PROJECTION);
+    const auto& projectionMat = state.getViewProjectionMatrix();
     programState->setUniform(_mvpMatrixLocation, projectionMat.m, sizeof(projectionMat.m));
 
     _quadCommand.init(_globalZOrder, _textureAtlas->getTexture(), _blendFunc, _textureAtlas->getQuads(), _quadsToDraw,
-                      transform, flags);
-    renderer->addCommand(&_quadCommand);
+                      transform, flags, state.getView());
+    state.getRenderer()->addCommand(&_quadCommand);
 }
 
 // AtlasNode - RGBA protocol

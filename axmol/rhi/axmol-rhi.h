@@ -27,9 +27,9 @@
 
 #include "axmol/rhi/RenderPassDesc.h"
 #include "axmol/rhi/RenderPipeline.h"
-#include "axmol/rhi/DriverContext.h"
+#include "axmol/rhi/GraphicsCore.h"
 #include "axmol/rhi/RHITypes.h"
-#include "axmol/rhi/RenderContext.h"
+#include "axmol/rhi/GraphicsContext.h"
 #include "axmol/rhi/Buffer.h"
 #include "axmol/rhi/VertexLayout.h"
 #include "axmol/rhi/Texture.h"

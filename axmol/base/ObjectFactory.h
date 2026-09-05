@@ -26,11 +26,11 @@ THE SOFTWARE.
 #pragma once
 
 #include <string>
-#include <unordered_map>
 #include <functional>
+
 #include "axmol/base/Object.h"
 #include "axmol/platform/PlatformMacros.h"
-
+#include "axmol/tlx/hlookup.hpp"
 namespace ax
 {
 
@@ -55,10 +55,10 @@ public:
 
     static ObjectFactory* getInstance();
     static void destroyInstance();
-    ax::Object* createObject(std::string_view name);
+    ax::Object* createObject(std::string_view className);
 
     void registerType(const TInfo& t);
-    void removeAll();
+    void unregisterType(std::string_view className);
 
 protected:
     ObjectFactory();

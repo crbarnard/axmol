@@ -27,7 +27,7 @@
 
 #include "axmol/rhi/RHITypes.h"
 #include "axmol/base/Object.h"
-#include <cassert>
+#include <assert.h>
 
 #include <functional>
 
@@ -82,6 +82,8 @@ public:
 
     int getWidth() const { return static_cast<int>(_desc.width); }
     int getHeight() const { return static_cast<int>(_desc.height); }
+    int getArraySize() const { return static_cast<int>(_desc.arraySize); }
+    int getMipLevels() const { return static_cast<int>(_desc.mipLevels); }
 
     /**
      * Update a two-dimensional texture image
@@ -107,7 +109,7 @@ public:
     virtual void updateCompressedData(const void* data,
                                       int width,
                                       int height,
-                                      std::size_t dataSize,
+                                      size_t dataSize,
                                       int level,
                                       int layerIndex) = 0;
 
@@ -141,7 +143,7 @@ public:
                                          int yoffset,
                                          int width,
                                          int height,
-                                         std::size_t dataSize,
+                                         size_t dataSize,
                                          int level,
                                          const void* data,
                                          int layerIndex) = 0;

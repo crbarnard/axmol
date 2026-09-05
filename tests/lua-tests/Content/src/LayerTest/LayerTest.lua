@@ -304,19 +304,19 @@ local function LayerTest1()
         l:setContentSize( newSize )
     end
 
-    local function onTouchesMoved(touches, event)
-        local touchLocation = touches[1]:getLocation()
+    local function onPointerMove(event)
+        local touchLocation = event:getWorldPoint()
 
         updateSize(touchLocation.x, touchLocation.y)
     end
 
-    local function onTouchesBegan(touches, event)
-        onTouchesMoved(touches, event)
+    local function onTouchesBegan(event)
+        onPointerMove(event)
     end
 
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(onTouchesBegan,ax.Handler.EVENT_TOUCHES_BEGAN )
-    listener:registerScriptHandler(onTouchesMoved,ax.Handler.EVENT_TOUCHES_MOVED )
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerDown = onTouchesBegan
+    listener.onPointerMove = onPointerMove
 
     local eventDispatcher = ret:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, ret)
@@ -386,11 +386,11 @@ local function LayerTestBlend()
         local dst = 0
 
         if  blend  then
-            src = ccb.BlendFactor.SRC_ALPHA
-            dst = ccb.BlendFactor.ONE_MINUS_SRC_ALPHA
+            src = axr.BlendFactor.SRC_ALPHA
+            dst = axr.BlendFactor.ONE_MINUS_SRC_ALPHA
         else
-            src = ccb.BlendFactor.ONE_MINUS_DST_COLOR
-            dst = ccb.BlendFactor.ZERO
+            src = axr.BlendFactor.ONE_MINUS_DST_COLOR
+            dst = axr.BlendFactor.ZERO
         end
 
         layer:setBlendFunc(ax.blendFunc(src, dst))
@@ -407,7 +407,7 @@ local function LayerTestBlend()
         end
     end
 
-    ret:registerScriptHandler(onNodeEvent)
+    ret:setLifecycleCallback(onNodeEvent)
     return ret
 end
 
@@ -443,9 +443,9 @@ local function LayerGradient()
     local s = ax.Director:getInstance():getCanvasSize()
     menu:setPosition(ax.p(s.width / 2, 100))
 
-    local function onTouchesMoved(touches, event)
+    local function onPointerMove(event)
         local s = ax.Director:getInstance():getCanvasSize()
-        local start = touches[1]:getLocation()
+        local start = event:getWorldPoint()
         local movingPos = ax.p(s.width/2,s.height/2)
         local diff = ax.p(movingPos.x - start.x, movingPos.y - start.y)
         diff = ax.pNormalize(diff)
@@ -454,8 +454,8 @@ local function LayerGradient()
         gradient:setVector(diff)
     end
 
-    local listener = ax.EventListenerTouchAllAtOnce:create()
-    listener:registerScriptHandler(onTouchesMoved,ax.Handler.EVENT_TOUCHES_MOVED )
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerMove = onPointerMove
 
     local eventDispatcher = ret:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, ret)
@@ -605,7 +605,7 @@ local function LayerExtendedBlendOpacityTest()
     layer3:setEndColor(ax.color32(255, 0, 255))
     layer3:setStartOpacity(255)
     layer3:setEndOpacity(255)
-    layer3:setBlendFunc(ax.blendFunc(ccb.BlendFactor.SRC_ALPHA, ccb.BlendFactor.ONE_MINUS_SRC_ALPHA))
+    layer3:setBlendFunc(ax.blendFunc(axr.BlendFactor.SRC_ALPHA, axr.BlendFactor.ONE_MINUS_SRC_ALPHA))
     ret:addChild(layer3)
     return ret
 end

@@ -46,7 +46,7 @@ NS_AX_EXT_BEGIN
  * @{
  */
 
-class AX_EX_DLL ControlSaturationBrightnessPicker : public Control
+class AX_EXT_API ControlSaturationBrightnessPicker : public Control
 {
     /** Contains the receiver's current saturation value. */
     AX_SYNTHESIZE_READONLY(float, _saturation, Saturation);
@@ -90,8 +90,8 @@ protected:
     void updateSliderPosition(Vec2 location);
     bool checkSliderPosition(Vec2 location);
 
-    bool onTouchBegan(Touch* touch, Event* pEvent) override;
-    void onTouchMoved(Touch* pTouch, Event* pEvent) override;
+    bool onPointerDown(PointerEvent* event) override;
+    void onPointerMove(PointerEvent* event) override;
 };
 
 // end of GUI group

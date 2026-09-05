@@ -42,7 +42,7 @@ local function AccelerometerMainLayer()
             target:setPosition(ax.p(ptNowX , ptNowY))
         end
 
-        local listener = ax.EventListenerAcceleration:create(accelerometerListener)
+        local listener = ax.AccelerationEventListener:create(accelerometerListener)
         layer:getEventDispatcher():addEventListenerWithSceneGraphPriority(listener, ball)
     end
 
@@ -58,7 +58,7 @@ local function AccelerometerMainLayer()
         end
     end
 
-    layer:registerScriptHandler(onNodeEvent)
+    layer:setLifecycleCallback(onNodeEvent)
 
     return layer
 end

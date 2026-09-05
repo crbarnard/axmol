@@ -43,7 +43,7 @@ NS_AX_EXT_BEGIN
  * @{
  */
 
-class AX_EX_DLL ControlSlider : public Control
+class AX_EXT_API ControlSlider : public Control
 {
 public:
     /**
@@ -116,8 +116,8 @@ public:
 
     virtual void setMaximumValue(float val);
     void setEnabled(bool enabled) override;
-    bool isTouchInside(Touch* touch) override;
-    Vec2 locationFromTouch(Touch* touch);
+    bool isTouchInside(PointerEvent* event) override;
+    Vec2 locationFromTouch(PointerEvent* event);
     virtual void setValue(float val);
     virtual void setMinimumValue(float val);
 
@@ -126,9 +126,9 @@ protected:
     void sliderMoved(Vec2 location);
     void sliderEnded(Vec2 location);
 
-    bool onTouchBegan(Touch* touch, Event* pEvent) override;
-    void onTouchMoved(Touch* pTouch, Event* pEvent) override;
-    void onTouchEnded(Touch* pTouch, Event* pEvent) override;
+    bool onPointerDown(PointerEvent* event) override;
+    void onPointerMove(PointerEvent* event) override;
+    void onPointerUp(PointerEvent* event) override;
 
     /** Returns the value for the given location. */
     float valueForLocation(Vec2 location);

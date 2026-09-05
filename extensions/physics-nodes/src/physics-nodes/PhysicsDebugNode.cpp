@@ -17,12 +17,7 @@
  */
 
 #include "PhysicsDebugNode.h"
-#include "axmol/physics/PhysicsHelper.h"
-
-#if defined(_WIN32)
-#    pragma push_macro("TRANSPARENT")
-#    undef TRANSPARENT
-#endif
+#include "axmol//physics/2d/PhysicsUtility2D.h"
 
 NS_AX_EXT_BEGIN
 
@@ -35,7 +30,7 @@ static void b2DrawPolygon(const b2Vec2* verts, int vertexCount, b2HexColor color
     {
         vec[i] = Vec2(verts[i].x * dn->getPTMRatio(), verts[i].y * dn->getPTMRatio()) + dn->getWorldOffset();
     }
-    dn->drawPolygon(vec, vertexCount, ax::Color::BLACK, 0.4f, PhysicsHelper::toColor(color));
+    dn->drawPolygon(vec, vertexCount, ax::Color::black, 0.4f, b2util::cast(color));
 }
 
 /// Draw a solid closed polygon provided in CCW order.
@@ -58,7 +53,7 @@ static void b2DrawSolidPolygon(b2Transform t,
         auto pt = b2TransformPoint(t, verts[i]);
         vec[i]  = Vec2(pt.x * dn->getPTMRatio(), pt.y * dn->getPTMRatio()) + dn->getWorldOffset();
     }
-    auto color4f = PhysicsHelper::toColor(color);
+    auto color4f = b2util::cast(color);
     dn->drawPolygon(vec.data(), vertexCount, ax::Color(color4f.r / 2, color4f.g / 2, color4f.b / 2, color4f.a), 0.5f,
                     color4f);
 }
@@ -68,7 +63,7 @@ static void b2DrawSolidPolygon(b2Transform t,
 static void b2DrawCircle(b2Vec2 center, float radius, b2HexColor color, PhysicsDebugNode* dn)
 {
     dn->drawDot(Vec2(center.x * dn->getPTMRatio(), center.y * dn->getPTMRatio()) + dn->getWorldOffset(),
-                radius * dn->getPTMRatio(), PhysicsHelper::toColor(color));
+                radius * dn->getPTMRatio(), b2util::cast(color));
 }
 
 /// Draw a solid circle.
@@ -77,8 +72,13 @@ static void b2DrawSolidCircle(b2Transform t, float radius, b2HexColor color, Phy
 {
     auto center  = b2TransformPoint(t, b2Vec2_zero);
     Vec2 c       = {Vec2(center.x * dn->getPTMRatio(), center.y * dn->getPTMRatio()) + dn->getWorldOffset()};
-    auto color4f = PhysicsHelper::toColor(color);
+    auto color4f = b2util::cast(color);
 
+#if AX_DRAWNODE_FAST_LINE2CENTER
+    dn->drawSolidCircle(c, radius * dn->getPTMRatio(), color4f,
+                        ax::Color(color4f.r / 4, color4f.g / 4, color4f.b / 4, color4f.a),
+                        AX_RADIANS_TO_DEGREES(b2Rot_GetAngle(t.q)));
+#else
     dn->drawDot(Vec2(center.x * dn->getPTMRatio(), center.y * dn->getPTMRatio()) + dn->getWorldOffset(),
                 radius * dn->getPTMRatio(), color4f);
     dn->drawDot(Vec2(center.x * dn->getPTMRatio(), center.y * dn->getPTMRatio()) + dn->getWorldOffset(),
@@ -88,6 +88,7 @@ static void b2DrawSolidCircle(b2Transform t, float radius, b2HexColor color, Phy
     b2Vec2 pp = {(center + radius * b2Rot_GetXAxis(t.q))};
     Vec2 cp   = {Vec2(pp.x * dn->getPTMRatio(), pp.y * dn->getPTMRatio()) + dn->getWorldOffset()};
     dn->drawLine(c, cp, color4f);
+#endif  // AX_DRAWNODE_FAST_LINE2CENTER
 }
 
 /// Draw a solid capsule.
@@ -95,11 +96,10 @@ static void b2DrawSolidCircle(b2Transform t, float radius, b2HexColor color, Phy
 
 /// Draw a line segment.
 // void (*DrawSegment)(b2Vec2 p1, b2Vec2 p2, b2HexColor color, void* context);
-static void b2DrawSegment(b2Vec2 p1, b2Vec2 p2, b2HexColor color, PhysicsDebugNode* dn)
+static void b2DrawLine(b2Vec2 p1, b2Vec2 p2, b2HexColor color, PhysicsDebugNode* dn)
 {
     dn->drawLine(Vec2(p1.x * dn->getPTMRatio(), p1.y * dn->getPTMRatio()) + dn->getWorldOffset(),
-                 Vec2(p2.x * dn->getPTMRatio(), p2.y * dn->getPTMRatio()) + dn->getWorldOffset(),
-                 PhysicsHelper::toColor(color));
+                 Vec2(p2.x * dn->getPTMRatio(), p2.y * dn->getPTMRatio()) + dn->getWorldOffset(), b2util::cast(color));
 }
 
 /// Draw a transform. Choose your own length scale.
@@ -110,10 +110,10 @@ static void b2DrawTransform(b2Transform t, PhysicsDebugNode* dn)
     const float k_axisScale = 0.4f;
 
     p2 = p1 + k_axisScale * b2Rot_GetXAxis(t.q);
-    b2DrawSegment(p1, p2, b2HexColor::b2_colorRed, dn);
+    b2DrawLine(p1, p2, b2HexColor::b2_colorRed, dn);
 
     p2 = p1 + k_axisScale * b2Rot_GetYAxis(t.q);
-    b2DrawSegment(p1, p2, b2HexColor::b2_colorGreen, dn);
+    b2DrawLine(p1, p2, b2HexColor::b2_colorGreen, dn);
 }
 
 /// Draw a point.
@@ -121,7 +121,7 @@ static void b2DrawTransform(b2Transform t, PhysicsDebugNode* dn)
 static void b2DrawPoint(b2Vec2 p, float size, b2HexColor color, PhysicsDebugNode* dn)
 {
     dn->drawPoint(Vec2(p.x * dn->getPTMRatio(), p.y * dn->getPTMRatio()) + dn->getWorldOffset(), size,
-                  PhysicsHelper::toColor(color));
+                  b2util::cast(color));
 }
 
 bool PhysicsDebugNode::initWithWorld(b2WorldId worldId)
@@ -132,7 +132,7 @@ bool PhysicsDebugNode::initWithWorld(b2WorldId worldId)
     return ret;
 }
 
-void PhysicsDebugNode::draw(Renderer* renderer, const Mat4& transform, uint32_t flags)
+void PhysicsDebugNode::draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags)
 {
     if (!b2World_IsValid(_world))
     {
@@ -146,7 +146,7 @@ void PhysicsDebugNode::draw(Renderer* renderer, const Mat4& transform, uint32_t 
         b2World_Draw(_world, _debugDraw);
     }
 
-    DrawNode::draw(renderer, transform, flags);
+    DrawNode::draw(state, transform, flags);
 }
 
 PhysicsDebugNode::PhysicsDebugNode() : _ownDebugDraw(true)
@@ -175,14 +175,10 @@ void PhysicsDebugNode::setBuiltinDrawFuncs()
     __b2_setfun(DrawSolidPolygon);
     __b2_setfun(DrawCircle);
     __b2_setfun(DrawSolidCircle);
-    __b2_setfun(DrawSegment);
+    __b2_setfun(DrawLine);
     __b2_setfun(DrawTransform);
     __b2_setfun(DrawPoint);
 #undef __b2_setfun
 }
 
 NS_AX_EXT_END
-
-#if defined(_WIN32)
-#    pragma pop_macro("TRANSPARENT")
-#endif

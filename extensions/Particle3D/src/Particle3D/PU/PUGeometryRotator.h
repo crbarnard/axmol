@@ -32,7 +32,7 @@
 namespace ax
 {
 struct PUParticle3D;
-class AX_EX_DLL PUGeometryRotator : public PUAffector
+class AX_EXT_API PUGeometryRotator : public PUAffector
 {
 public:
     // Constants
@@ -90,7 +90,7 @@ protected:
     float _scaledRotationSpeed;
     bool _useOwnRotationSpeed;
     PUDynamicAttribute* _dynRotationSpeed;
-    Quaternion _q;
+    Quat _q;
     Vec3 _rotationAxis;
     bool _rotationAxisSet;
 

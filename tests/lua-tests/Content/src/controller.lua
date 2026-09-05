@@ -10,12 +10,16 @@ end
 ----------------
 -- run
 AX_USE_DEPRECATED_API = true
+-- lua-tests use the framework extensions (NodeEx, UI helpers, transitions,
+-- and the legacy lifecycle facade).  The test target does not ship the
+-- template config.lua, so make the entry-point contract explicit here.
+AX_USE_FRAMEWORK = true
 require "axmol.init"
 
 local director = ax.Director:getInstance()
 local renderView   = director:getRenderView()
 if nil == renderView then
-    renderView = ax.RenderViewImpl:createWithRect("Lua Tests", ax.rect(0,0,960,640), 1.0, true)
+    renderView = ax.RenderView:createWithRect("Lua Tests", ax.rect(0,0,960,640), 1.0, true)
     director:setRenderView(renderView)
 end
 

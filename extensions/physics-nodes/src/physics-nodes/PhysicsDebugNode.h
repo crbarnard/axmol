@@ -28,7 +28,7 @@
 NS_AX_EXT_BEGIN
 
 // This class implements debug drawing callbacks that are invoked inside b2World::Step.
-class AX_EX_DLL PhysicsDebugNode : public DrawNode
+class AX_EXT_API PhysicsDebugNode : public DrawNode
 {
 public:
     PhysicsDebugNode();
@@ -51,7 +51,7 @@ public:
     float getPTMRatio() const { return _ratio; }
 
     // Overrides
-    void draw(Renderer* renderer, const Mat4& transform, uint32_t flags) override;
+    void draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags) override;
 
     b2DebugDraw& getB2DebugDraw() { return *_debugDraw; }
 

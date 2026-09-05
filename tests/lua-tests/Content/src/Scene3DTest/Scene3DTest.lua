@@ -66,7 +66,7 @@ end
 
 function Player:init()
     self._headingAxis = ax.vec3(0.0, 0.0, 0.0)
-    self:scheduleUpdateWithPriorityLua(function(dt)
+    self:onUpdate(function(dt)
         local curPos = self:getPosition3D()
         if self._playerState == PLAER_STATE.IDLE then
 
@@ -109,9 +109,9 @@ function Player:init()
         local playerPos = self:getPosition3D()
         self._cam:setPosition3D(ax.vec3add(playerPos, camera_offset))
         self:updateState()
-    end, 0)
+    end)
 
-    self:registerScriptHandler(function (event)
+    self:setLifecycleCallback(function (event)
         -- body
         if "exit" == event then
             self:unscheduleUpdate()
@@ -145,7 +145,7 @@ function TerrainWalkThru:ctor()
             self:onExit()
         end
     end
-     self:registerScriptHandler(onNodeEvent)
+     self:setLifecycleCallback(onNodeEvent)
 end
 
 function TerrainWalkThru:onEnter()
@@ -160,24 +160,24 @@ function TerrainWalkThru:init()
     Helper.titleLabel:setString(self:title())
     Helper.subtitleLabel:setString(self:subtitle())
 
-    local listener = ax.EventListenerTouchAllAtOnce:create()
+    local listener = ax.PointerEventListener:create()
 
-    listener:registerScriptHandler(function (touches, event)
+    listener.onPointerDown = function(event)
 
-    end,ax.Handler.EVENT_TOUCHES_BEGAN)
+    end
 
-    listener:registerScriptHandler(function (touches, event)
+    listener.onPointerUp = function(event)
 
-        local touch = touches[1]
-        local location = touch:getLocationInView()
+        local touch = event
+        local location = event:getPoint()
         if self._camera ~= nil then
             if self._player ~= nil then
                 local nearP = ax.vec3(location.x, location.y, 0.0)
                 local farP  = ax.vec3(location.x, location.y, 1.0)
 
                 local size = ax.Director:getInstance():getCanvasSize()
-                nearP = self._camera:unproject(size, nearP, nearP)
-                farP  = self._camera:unproject(size, farP, farP)
+                nearP = self._camera:deprojectScreenToWorld(nearP)
+                farP  = self._camera:deprojectScreenToWorld(farP)
                 local dir = ax.vec3sub(farP, nearP)
                 dir = ax.vec3normalize(dir)
 
@@ -202,7 +202,7 @@ function TerrainWalkThru:init()
                 self._player._playerState = PLAER_STATE.FORWARD
             end
         end
-    end,ax.Handler.EVENT_TOUCHES_ENDED)
+    end
 
     local eventDispatcher = self:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, self)
@@ -317,7 +317,7 @@ function Scene3DTest:create3DWorld()
                                        "MeshRendererTest/skybox/front.jpg", "MeshRendererTest/skybox/back.jpg")
 
     --set texture parameters
-    local tRepeatParams = { magFilter = ccb.SamplerFilter.LINEAR , minFilter = ccb.SamplerFilter.LINEAR , sAddressMode = ccb.SamplerAddressMode.MIRRORED_REPEAT  , tAddressMode = ccb.SamplerAddressMode.MIRRORED_REPEAT }
+    local tRepeatParams = { magFilter = axr.SamplerFilter.LINEAR , minFilter = axr.SamplerFilter.LINEAR , sAddressMode = axr.SamplerAddressMode.MIRRORED_REPEAT  , tAddressMode = axr.SamplerAddressMode.MIRRORED_REPEAT }
     self._textureCube:setTexParameters(tRepeatParams)
 
     --add skybox
@@ -364,7 +364,7 @@ function Scene3DTest:createPlayerDlg()
     local margin = 10
 
     --first, create dialog ui part, include background, title and buttons
-    self._playerDlg = ccui.Scale9Sprite:createWithSpriteFrameName("button_actived.png")
+    self._playerDlg = axui.Scale9Sprite:createWithSpriteFrameName("button_actived.png")
     self._playerDlg:setContentSize(dlgSize)
     self._playerDlg:setAnchorPoint(ax.p(1, 0.5))
     pos.y = pos.y - margin
@@ -379,7 +379,7 @@ function Scene3DTest:createPlayerDlg()
     --player background
     local bgSize = ax.size(110, 180)
     local bgPos  = ax.p(margin, dlgSize.height / 2 - margin)
-    local playerBg = ccui.Scale9Sprite:createWithSpriteFrameName("item_bg.png")
+    local playerBg = axui.Scale9Sprite:createWithSpriteFrameName("item_bg.png")
     playerBg:setContentSize(bgSize)
     playerBg:setAnchorPoint(ax.p(0, 0.5))
     playerBg:setPosition(bgPos)
@@ -389,13 +389,13 @@ function Scene3DTest:createPlayerDlg()
     local itemSize   = ax.size(48, 48)
     local itemAnchor = ax.p(0, 1)
     local itemPos    = ax.p(bgPos.x + bgSize.width + margin, bgPos.y + bgSize.height / 2)
-    local itemBg = ccui.Scale9Sprite:createWithSpriteFrameName("item_bg.png")
+    local itemBg = axui.Scale9Sprite:createWithSpriteFrameName("item_bg.png")
     itemBg:setContentSize(itemSize)
     itemBg:setAnchorPoint(itemAnchor)
     itemBg:setPosition(itemPos)
     self._playerDlg:addChild(itemBg)
 
-    local item = ccui.Button:create("crystal.png", "", "", ccui.TextureResType.plistType)
+    local item = axui.Button:create("crystal.png", "", "", axui.TextureResType.plistType)
     item:setScale(1.5)
     item:setAnchorPoint(itemAnchor)
     item:setPosition(itemPos)
@@ -418,7 +418,7 @@ function Scene3DTest:createPlayerDlg()
     playerBg:addChild(girl)
 
     --third, add zoom in/out button, which is 2d ui element and over 3d actor
-    local zoomIn = ccui.Button:create("cocosui/animationbuttonnormal.png","cocosui/animationbuttonpressed.png")
+    local zoomIn = axui.Button:create("cocosui/animationbuttonnormal.png","cocosui/animationbuttonpressed.png")
     zoomIn:setScale(0.5)
     zoomIn:setAnchorPoint(ax.p(1, 1))
     zoomIn:setPosition(ax.p(bgSize.width / 2 - margin / 2, bgSize.height - margin))
@@ -429,7 +429,7 @@ function Scene3DTest:createPlayerDlg()
     zoomIn:setCameraMask(s_CM[GAME_LAYER.LAYER_ZOOM])
     playerBg:addChild(zoomIn)
 
-    local zoomOut = ccui.Button:create("cocosui/animationbuttonnormal.png", "cocosui/animationbuttonpressed.png")
+    local zoomOut = axui.Button:create("cocosui/animationbuttonnormal.png", "cocosui/animationbuttonpressed.png")
     zoomOut:setScale(0.5)
     zoomOut:setAnchorPoint(ax.p(0, 1))
     zoomOut:setPosition(ax.p(bgSize.width / 2 + margin / 2, bgSize.height - margin))
@@ -449,7 +449,7 @@ function Scene3DTest:createDetailDlg()
     local margin = 10
 
     --create dialog
-    self._detailDlg = ccui.Scale9Sprite:createWithSpriteFrameName("button_actived.png")
+    self._detailDlg = axui.Scale9Sprite:createWithSpriteFrameName("button_actived.png")
     self._detailDlg:setContentSize(dlgSize)
     self._detailDlg:setAnchorPoint(ax.p(0, 0.5))
     self._detailDlg:setOpacity(224)
@@ -473,8 +473,8 @@ function Scene3DTest:createDetailDlg()
 --    skeletonNode:setPosition(ax.p(dlgSize.width / 2, 20))
 --    self._detailDlg:addChild(skeletonNode)
 
-    local listener = ax.EventListenerTouchOneByOne:create()
-    listener:registerScriptHandler(function (touch, event)
+    local listener = ax.PointerEventListener:create()
+    listener.onPointerDown = function(event)
 --        if (not skeletonNode:getDebugBonesEnabled()) then
 --            skeletonNode:setDebugBonesEnabled(true)
 --        elseif skeletonNode:getTimeScale() == 1 then
@@ -485,7 +485,7 @@ function Scene3DTest:createDetailDlg()
 --        end
 
         return true
-    end,ax.Handler.EVENT_TOUCH_BEGAN )
+    end
 
     local eventDispatcher = self:getEventDispatcher()
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, self)
@@ -503,7 +503,7 @@ function Scene3DTest:createDescDlg()
     local margin = 10
 
     --create dialog
-    self._descDlg = ccui.Scale9Sprite:createWithSpriteFrameName("button_actived.png")
+    self._descDlg = axui.Scale9Sprite:createWithSpriteFrameName("button_actived.png")
     self._descDlg:setContentSize(dlgSize)
     self._descDlg:setOpacity(224)
     self._descDlg:setPosition(pos)

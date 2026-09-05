@@ -1,16 +1,16 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated July 28, 2023. Replaces all prior versions.
+ * Last updated April 5, 2025. Replaces all prior versions.
  *
- * Copyright (c) 2013-2023, Esoteric Software LLC
+ * Copyright (c) 2013-2025, Esoteric Software LLC
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
  * conditions of Section 2 of the Spine Editor License Agreement:
  * http://esotericsoftware.com/spine-editor-license
  *
- * Otherwise, it is permitted to integrate the Spine Runtimes into software or
- * otherwise create derivative works of the Spine Runtimes (collectively,
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
  * "Products"), provided that each user of the Products must obtain their own
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
@@ -23,14 +23,15 @@
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
  * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE
- * SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #ifndef Spine_Json_h
 #define Spine_Json_h
 
 #include <spine/SpineObject.h>
+#include <spine/Array.h>
 
 #ifndef SPINE_JSON_HAVE_PREV
 /* spine doesn't use the "prev" link in the Json sibling lists. */
@@ -50,6 +51,30 @@ namespace spine {
 		static const int JSON_STRING;
 		static const int JSON_ARRAY;
 		static const int JSON_OBJECT;
+
+		static bool asFloatArray(Json *value, Array<float> &array) {
+			if (value == NULL) return false;
+			array.setSize(value->_size, 0);
+			Json *vertex = value->_child;
+			for (int i = 0; vertex; vertex = vertex->_next, i++) array[i] = vertex->_valueFloat;
+			return true;
+		}
+
+		static bool asIntArray(Json *value, Array<int> &array) {
+			if (value == NULL) return false;
+			array.setSize(value->_size, 0);
+			Json *vertex = value->_child;
+			for (int i = 0; vertex; vertex = vertex->_next, i++) array[i] = vertex->_valueInt;
+			return true;
+		}
+
+		static bool asUnsignedShortArray(Json *value, Array<unsigned short> &array) {
+			if (value == NULL) return false;
+			array.setSize(value->_size, 0);
+			Json *vertex = value->_child;
+			for (int i = 0; vertex; vertex = vertex->_next, i++) array[i] = (unsigned short) vertex->_valueInt;
+			return true;
+		}
 
 		/* Get item "string" from object. Case insensitive. */
 		static Json *getItem(Json *object, const char *string);
@@ -78,7 +103,7 @@ namespace spine {
 
 		Json *_next;
 #if SPINE_JSON_HAVE_PREV
-		Json* _prev; /* next/prev allow you to walk array/object chains. Alternatively, use getSize/getItem */
+		Json *_prev; /* next/prev allow you to walk array/object chains. Alternatively, use getSize/getItem */
 #endif
 		Json *_child; /* An array or object item will have a child pointer pointing to a chain of the items in the array/object. */
 
@@ -86,8 +111,8 @@ namespace spine {
 		int _size; /* The number of children. */
 
 		const char *_valueString; /* The item's string, if type==JSON_STRING */
-		int _valueInt; /* The item's number, if type==JSON_NUMBER */
-		float _valueFloat; /* The item's number, if type==JSON_NUMBER */
+		int _valueInt;            /* The item's number, if type==JSON_NUMBER */
+		float _valueFloat;        /* The item's number, if type==JSON_NUMBER */
 
 		const char *_name; /* The item's name string, if this item is the child of, or is in the list of subitems of an object. */
 

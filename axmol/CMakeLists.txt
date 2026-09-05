@@ -176,14 +176,13 @@ cmake_dependent_option(AX_ENABLE_VLC_MEDIA "Enabling vlc media" OFF "(WIN32 AND 
 
 cmake_dependent_option(AX_ENABLE_WAYLAND "Enabling linux wayland" OFF "LINUX" OFF)
 
-option(AX_ENABLE_PHYSICS "Build Physics support" ON)
-cmake_dependent_option(AX_ENABLE_MEDIA "Build media support" ON "AX_ENABLE_MFMEDIA OR AX_ENABLE_VLC_MEDIA OR APPLE OR ANDROID" OFF)
+option(AX_ENABLE_PHYSICS_2D "Build Physics2D support" ON)
+cmake_dependent_option(AX_ENABLE_VIDEO "Build video support" ON "AX_ENABLE_MFMEDIA OR AX_ENABLE_VLC_MEDIA OR APPLE OR ANDROID" OFF)
 option(AX_ENABLE_AUDIO "Build audio support" ON)
 option(AX_ENABLE_OPUS "Build with opus support" ON)
-option(AX_ENABLE_CONSOLE "Build axmol debug tool: console support" ON)
 
 option(AX_ENABLE_3D "Build 3D support" ON)
-cmake_dependent_option(AX_ENABLE_3D_PHYSICS "Build 3D Physics support" ON "AX_ENABLE_3D" OFF)
+cmake_dependent_option(AX_ENABLE_PHYSICS_3D "Build Physics3D support" ON "AX_ENABLE_3D" OFF)
 cmake_dependent_option(AX_ENABLE_NAVMESH "Build NavMesh support" ON "AX_ENABLE_3D" OFF)
 
 option(AX_ENABLE_VR "Build VR support" OFF)
@@ -191,6 +190,9 @@ option(AX_ENABLE_VR "Build VR support" OFF)
 option(AX_UPDATE_BUILD_VERSION "Update build version" ON)
 option(AX_DISABLE_GLES2 "Whether disable GLES2 support" OFF)
 option(AX_CORE_PROFILE "Whether strip deprecated features" ON)
+
+set(AX_PROFILER_BACKEND "NONE" CACHE STRING "Profiling backend")
+set_property(CACHE AX_PROFILER_BACKEND PROPERTY STRINGS NONE TRACY)
 
 # default value for axmol extensions modules to Build
 # total supported extensions count: 13
@@ -202,18 +204,20 @@ option(AX_ENABLE_EXT_GUI "Build extension GUI" ${AX_EXT_HINT})
 option(AX_ENABLE_EXT_ASSETMANAGER "Build extension asset-manager" ${AX_EXT_HINT})
 option(AX_ENABLE_EXT_SPINE "Build extension spine" ${AX_EXT_HINT})
 option(AX_ENABLE_EXT_DRAGONBONES "Build extension DragonBones" ${AX_EXT_HINT})
-option(AX_ENABLE_EXT_COCOSTUDIO "Build extension cocostudio" ${AX_EXT_HINT})
+option(AX_ENABLE_EXT_SCENEIO "Build extension sceneio (aka cocostudio)" ${AX_EXT_HINT})
 option(AX_ENABLE_EXT_FAIRYGUI "Build extension FairyGUI" ${AX_EXT_HINT})
+option(AX_ENABLE_EXT_IMGUI "Build extension ImGui" ${AX_EXT_HINT})
 option(AX_ENABLE_EXT_LIVE2D "Build extension Live2D" OFF)
 option(AX_ENABLE_EXT_EFFEKSEER "Build extension Effekseer" OFF)
 
+cmake_dependent_option(AX_ENABLE_OPENXR "Build OpenXR support" OFF "AX_ENABLE_VR;NOT IOS;NOT WASM" OFF)
 cmake_dependent_option(AX_ENABLE_EXT_PARTICLE3D "Build extension Particle3D" ${AX_EXT_HINT} "AX_ENABLE_3D" OFF)
-cmake_dependent_option(AX_ENABLE_EXT_PHYSICS_NODE "Build extension physics-nodes" ${AX_EXT_HINT} "AX_ENABLE_PHYSICS" OFF)
-cmake_dependent_option(AX_ENABLE_EXT_IMGUI "Build extension ImGui" ${AX_EXT_HINT} "NOT IOS AND NOT WINRT" OFF)
+cmake_dependent_option(AX_ENABLE_EXT_PHYSICS_NODE "Build extension physics-nodes" ${AX_EXT_HINT} "AX_ENABLE_PHYSICS_2D" OFF)
 cmake_dependent_option(AX_ENABLE_EXT_INSPECTOR "Build extension Inspector" ${AX_EXT_HINT} "AX_ENABLE_EXT_IMGUI" OFF)
 cmake_dependent_option(AX_ENABLE_EXT_SDFGEN "Build extension SDFGen" ${AX_EXT_HINT} "AX_ENABLE_EXT_IMGUI" OFF)
 
 option(AX_ENABLE_EXT_JSONDEFAULT "Build extension JSONDefault" ${AX_EXT_HINT})
+option(AX_ENABLE_EXT_SVG "Build extension SVG" OFF)
 set(_AX_THIRDPARTY_NAME "3rdparty" CACHE INTERNAL "")
 
 if(WIN32)
@@ -231,19 +235,19 @@ if(WASM)
 endif()
 
 # axmolver.h
-find_program(GIT_PROG NAMES git)
+find_program(GIT_EXECUTABLE NAMES git)
 
-if(AX_UPDATE_BUILD_VERSION AND GIT_PROG AND EXISTS "${_AX_ROOT}/.git")
+if(AX_UPDATE_BUILD_VERSION AND GIT_EXECUTABLE AND EXISTS "${_AX_ROOT}/.git")
   # Get the current working branch and its latest abbreviated commit hash
-  execute_process(COMMAND ${GIT_PROG} -C "${_AX_ROOT}" rev-list --count HEAD
+  execute_process(COMMAND ${GIT_EXECUTABLE} -C "${_AX_ROOT}" rev-list --count HEAD
     TIMEOUT 5
     OUTPUT_VARIABLE AX_BUILD_NUM
     OUTPUT_STRIP_TRAILING_WHITESPACE)
-  execute_process(COMMAND ${GIT_PROG} -C "${_AX_ROOT}" branch --show-current
+  execute_process(COMMAND ${GIT_EXECUTABLE} -C "${_AX_ROOT}" branch --show-current
     TIMEOUT 5
     OUTPUT_VARIABLE AX_GIT_BRANCH
     OUTPUT_STRIP_TRAILING_WHITESPACE)
-  execute_process(COMMAND ${GIT_PROG} -C "${_AX_ROOT}" rev-parse --short=7 HEAD
+  execute_process(COMMAND ${GIT_EXECUTABLE} -C "${_AX_ROOT}" rev-parse --short=7 HEAD
     TIMEOUT 5
     OUTPUT_VARIABLE AX_GIT_COMMIT_HASH
     OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -263,6 +267,8 @@ configure_file(
 # cmake_dependent_option(AX_ENABLE_EARLY_FEATURES
 # "Build the tests when we are the root project" ON
 # "NOT (AX_GIT_BRANCH STREQUAL \"dev\")" OFF)
+
+include(scene/CMakeLists.txt)
 include(2d/CMakeLists.txt)
 
 if(AX_ENABLE_3D)
@@ -270,15 +276,9 @@ if(AX_ENABLE_3D)
 endif()
 
 include(platform/CMakeLists.txt)
-
-if(AX_ENABLE_PHYSICS)
-  include(physics/CMakeLists.txt)
+if(AX_ENABLE_PHYSICS_2D OR AX_ENABLE_PHYSICS_3D)
+    include(physics/CMakeLists.txt)
 endif()
-
-if(AX_ENABLE_3D_PHYSICS)
-  include(physics3d/CMakeLists.txt)
-endif()
-
 include(math/CMakeLists.txt)
 
 if(AX_ENABLE_NAVMESH)
@@ -296,7 +296,7 @@ if(AX_ENABLE_AUDIO)
   include(audio/CMakeLists.txt)
 endif()
 
-if(AX_ENABLE_MEDIA)
+if(AX_ENABLE_VIDEO)
   file(GLOB_RECURSE _AX_MEDIA_HEADER media/*.h)
   file(GLOB_RECURSE _AX_MEDIA_SRC media/*.cpp)
 
@@ -309,11 +309,12 @@ endif()
 if(AX_ENABLE_VR)
     include(vr/CMakeLists.txt)
     if (APPLE)
-        set_source_files_properties(vr/VRGenericHeadTracker.cpp PROPERTIES LANGUAGE OBJCXX)
+      set_source_files_properties(vr/VRGenericHeadTracker.cpp PROPERTIES LANGUAGE OBJCXX)
     endif()
 endif()
 
 set(_AX_HEADER axmol.h
+  ${_AX_SCENE_HEADER}
   ${_AX_2D_HEADER}
   ${_AX_PLATFORM_HEADER}
   ${_AX_MATH_HEADER}
@@ -326,6 +327,7 @@ set(_AX_HEADER axmol.h
 )
 
 set(_AX_SRC axmol.cpp
+  ${_AX_SCENE_SRC}
   ${_AX_2D_SRC}
   ${_AX_PLATFORM_SRC}
   ${_AX_MATH_SRC}
@@ -341,14 +343,9 @@ if(AX_ENABLE_3D)
   list(APPEND _AX_SRC ${_AX_3D_SRC})
 endif()
 
-if(AX_ENABLE_PHYSICS)
+if(AX_ENABLE_PHYSICS_2D OR AX_ENABLE_PHYSICS_3D)
   list(APPEND _AX_HEADER ${_AX_PHYSICS_HEADER})
   list(APPEND _AX_SRC ${_AX_PHYSICS_SRC})
-endif()
-
-if(AX_ENABLE_3D_PHYSICS)
-  list(APPEND _AX_HEADER ${_AX_PHYSICS3D_HEADER})
-  list(APPEND _AX_SRC ${_AX_PHYSICS3D_SRC})
 endif()
 
 if(AX_ENABLE_NAVMESH)
@@ -356,7 +353,7 @@ if(AX_ENABLE_NAVMESH)
   list(APPEND _AX_SRC ${_AX_NAVMESH_SRC})
 endif()
 
-if(AX_ENABLE_MEDIA)
+if(AX_ENABLE_VIDEO)
   list(APPEND _AX_HEADER ${_AX_MEDIA_HEADER})
   list(APPEND _AX_SRC ${_AX_MEDIA_SRC})
 endif()
@@ -395,6 +392,11 @@ elseif(AX_ENABLE_MFMEDIA AND NOT WINRT)
   endif()
 endif()
 
+if(IOS)
+  # Add Obj-C source files for iOS platform to avoid hack categories not working without -ObjC flag
+  target_link_options(${_AX_CORE_LIB} INTERFACE -ObjC)
+endif()
+
 ax_find_shaders(${_AX_ROOT}/axmol/renderer/shaders _builtin_shaders)
 set(_AX_BUILTIN_SHADERS ${_builtin_shaders} CACHE STATIC "" FORCE)
 
@@ -415,37 +417,37 @@ configure_file(
   "${CMAKE_CURRENT_LIST_DIR}/renderer/RenderConsts.h.in"
   "${CMAKE_CURRENT_LIST_DIR}/renderer/RenderConsts.h" @ONLY)
 
-# SKINPOSITION_NORMAL_TEXTURE_3D:       skinPositionNormalTexture.vert,     colorNormalTexture.frag, LightDefs
-# POSITION_NORMAL_TEXTURE_3D:           skinPositionNormalTexture.vert,     colorNormalTexture.frag, LightDefs
-# POSITION_NORMAL_3D:                   positionNormalTexture.vert,         colorNormal.frag,        LightDefs
-# POSITION_BUMPEDNORMAL_TEXTURE_3D:     positionNormalTexture.vert,         colorNormalTexture.frag, lightNormMapDef
-# SKINPOSITION_BUMPEDNORMAL_TEXTURE_3D: skinPositionNormalTexture_vert,     colorNormalTexture.frag, lightNormMapDef
+# SKINPOSITION_NORMAL_TEXTURE_3D:       skinPositionNormalTexture_vs.hlsl,     colorNormalTexture_fs.hlsl, LightDefs
+# POSITION_NORMAL_TEXTURE_3D:           skinPositionNormalTexture_vs.hlsl,     colorNormalTexture_fs.hlsl, LightDefs
+# POSITION_NORMAL_3D:                   positionNormalTexture_vs.hlsl,         colorNormal_fs.hlsl,        LightDefs
+# POSITION_BUMPEDNORMAL_TEXTURE_3D:     positionNormalTexture_vs.hlsl,         colorNormalTexture_fs.hlsl, lightNormMapDef
+# SKINPOSITION_BUMPEDNORMAL_TEXTURE_3D: skinPositionNormalTexture_vs.hlsl,     colorNormalTexture_fs.hlsl, lightNormMapDef
 set_source_files_properties(
-  ${_AX_ROOT}/axmol/renderer/shaders/colorNormal.frag
-  ${_AX_ROOT}/axmol/renderer/shaders/colorNormalTexture.frag
-  ${_AX_ROOT}/axmol/renderer/shaders/positionNormalTexture.vert
-  ${_AX_ROOT}/axmol/renderer/shaders/skinPositionNormalTexture.vert
+  ${_AX_ROOT}/axmol/renderer/shaders/colorNormal_fs.hlsl
+  ${_AX_ROOT}/axmol/renderer/shaders/colorNormalTexture_fs.hlsl
+  ${_AX_ROOT}/axmol/renderer/shaders/positionNormalTexture_vs.hlsl
+  ${_AX_ROOT}/axmol/renderer/shaders/skinPositionNormalTexture_vs.hlsl
   PROPERTIES AXSLCC_DEFINES
   "MAX_DIRECTIONAL_LIGHT_NUM=${AX_MAX_DIRECTIONAL_LIGHT},MAX_POINT_LIGHT_NUM=${AX_MAX_POINT_LIGHT},MAX_SPOT_LIGHT_NUM=${AX_MAX_SPOT_LIGHT}"
 )
 set_source_files_properties(
-  ${_AX_ROOT}/axmol/renderer/shaders/colorNormalTexture.frag
-  ${_AX_ROOT}/axmol/renderer/shaders/positionNormalTexture.vert
-  ${_AX_ROOT}/axmol/renderer/shaders/skinPositionNormalTexture.vert
-  PROPERTIES AXSLCC_OUTPUT1 "USE_NORMAL_MAPPING=1"
+  ${_AX_ROOT}/axmol/renderer/shaders/colorNormalTexture_fs.hlsl
+  ${_AX_ROOT}/axmol/renderer/shaders/positionNormalTexture_vs.hlsl
+  ${_AX_ROOT}/axmol/renderer/shaders/skinPositionNormalTexture_vs.hlsl
+  PROPERTIES AXSLCC_VARIANT_DEFINES "USE_NORMAL_MAPPING=1"
 )
 ax_add_shader_target_for(${_AX_CORE_LIB} FILES ${_builtin_shaders} BUILTIN)
 
 ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_MFMEDIA)
 ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_MSEDGE_WEBVIEW2)
-ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_PHYSICS)
+ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_PHYSICS_2D)
 ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_3D)
-ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_3D_PHYSICS)
+ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_PHYSICS_3D)
 ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_NAVMESH)
-ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_MEDIA)
+ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_VIDEO)
 ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_AUDIO)
-ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_CONSOLE)
 ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_VR)
+ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_OPENXR)
 ax_config_pred(${_AX_CORE_LIB} AX_CORE_PROFILE)
 ax_config_pred(${_AX_CORE_LIB} AX_ENABLE_WAYLAND)
 
@@ -572,6 +574,10 @@ if(_simdc_defines)
   endif()
 endif()
 
+# profiling configuration
+ax_apply_profiler_backend(${_AX_CORE_LIB} PUBLIC)
+message(STATUS "AX_PROFILER_BACKEND=${AX_PROFILER_BACKEND}")
+
 # 3rd libs
 add_subdirectory(${_AX_ROOT}/3rdparty ${ENGINE_BINARY_PATH}/3rdparty)
 target_link_libraries(${_AX_CORE_LIB} 3rdparty)
@@ -626,4 +632,21 @@ elseif(LINUX)
     target_include_directories(${_AX_CORE_LIB} PUBLIC ${WEBKIT2GTK_INCLUDE_DIRS})
     target_link_libraries(${_AX_CORE_LIB} ${WEBKIT2GTK_LIBRARIES})
   endif()
+endif()
+
+# ====================================================================
+# Create 'axmol-sdk' target to cascade build the core and all extensions
+# ====================================================================
+if(BUILD_ENGINE_BEGAN)
+    add_custom_target(axmol-sdk)
+
+    add_dependencies(axmol-sdk axmol ${_AX_EXTENSION_LIBS})
+
+    # Automatically gather only the necessary libraries (Core + 3rdparty + Extensions)
+    ax_collect_sdk_targets(${CMAKE_SOURCE_DIR} _axmol_libs)
+
+    # Export the clean library target map
+    export(TARGETS ${_axmol_libs} FILE "${CMAKE_BINARY_DIR}/AxmolTargets.cmake")
+
+    message(STATUS "🔧 Created target 'axmol-sdk' (included extensions: ${_AX_EXTENSION_LIBS}) and exported clean SDK library map (Tests excluded).")
 endif()

@@ -26,7 +26,8 @@
 #include "../testResource.h"
 #include "axmol/axmol.h"
 #include "axmol/renderer/Shaders.h"
-#include "axmol/rhi/DriverContext.h"
+#include "axmol/rhi/GraphicsCore.h"
+#include "axmol/rhi/SamplerRegistry.h"
 
 using namespace ax;
 USING_NS_AX_EXT;
@@ -60,6 +61,8 @@ ShaderTests::ShaderTests()
     ADD_TEST_CASE(ShaderMonjori);
     ADD_TEST_CASE(ShaderGlow);
     ADD_TEST_CASE(ShaderMultiTexture);
+    ADD_TEST_CASE(ShaderCustomSampler);
+    ADD_TEST_CASE(ShaderMultiCustomSampler);
 }
 
 ///---------------------------------------
@@ -89,7 +92,7 @@ ShaderNode* ShaderNode::shaderNodeWithVertex(std::string_view vert, std::string_
 bool ShaderNode::initWithVertex(std::string_view vert, std::string_view frag)
 {
     if (vert.empty())
-        vert = position_vert;
+        vert = position_vs;
     _vertFileName = vert;
     _fragFileName = frag;
 
@@ -104,10 +107,7 @@ bool ShaderNode::initWithVertex(std::string_view vert, std::string_view frag)
     setAnchorPoint(Vec2(0.5f, 0.5f));
 
     // init custom command
-    auto inputDesc = _programState->getVertexInputDesc("a_position");
-
-    // auto vertexLayout = _programState->getMutableVertexLayout();
-    // vertexLayout->setAttrib("a_position", attrPosLoc, rhi::VertexFormat::FLOAT4, 0, false);
+    auto inputDesc = _programState->getVertexInputDesc(rhi::VertexSemantic::POSITION);
 
     float w = SIZE_X, h = SIZE_Y;
     Vec3 vertices[6] = {Vec3(0.0f, 0.0f, 1.0f), Vec3(w, 0.0f, 1.0f), Vec3(w, h, 1.0f),
@@ -151,14 +151,14 @@ void ShaderNode::setPosition(const Vec2& newPosition)
                             position.y * frameSize.height / visibleSize.height * renderScale);
 }
 
-void ShaderNode::draw(Renderer* renderer, const Mat4& transform, uint32_t flags)
+void ShaderNode::draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags)
 {
-    _customCommand.init(_globalZOrder, transform, flags);
+    _customCommand.init(_globalZOrder, transform, flags, state.getView());
 
     _programState->setUniform(_locResolution, &_resolution, sizeof(_resolution));
     _programState->setUniform(_locCenter, &_center, sizeof(_center));
 
-    auto projectionMatrix = Director::getInstance()->getMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_PROJECTION);
+    auto projectionMatrix = state.getViewProjectionMatrix();
     auto finalMatrix      = projectionMatrix * transform;
 
     _programState->setUniform(_locMVP, finalMatrix.m, sizeof(finalMatrix.m));
@@ -172,7 +172,7 @@ void ShaderNode::draw(Renderer* renderer, const Mat4& transform, uint32_t flags)
     _programState->setUniform(_locSinTime, &sinTime, sizeof(sinTime));
     _programState->setUniform(_locCosTime, &cosTime, sizeof(cosTime));
 
-    renderer->addCommand(&_customCommand);
+    state.getRenderer()->addCommand(&_customCommand);
     AX_INCREMENT_GL_DRAWN_BATCHES_AND_VERTICES(1, 6);
 }
 
@@ -384,6 +384,7 @@ public:
     void initProgram();
 
     static SpriteBlur* create(const char* pszFileName);
+    void draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags) override;
     void setBlurRadius(float radius);
     void setBlurSampleNum(float num);
 
@@ -419,7 +420,7 @@ bool SpriteBlur::initWithTexture(Texture2D* texture, const Rect& rect)
     {
 #if AX_ENABLE_CONTEXT_LOSS_RECOVERY
         auto listener =
-            EventListenerCustom::create(EVENT_RENDERER_RECREATED, [this](EventCustom* event) { initProgram(); });
+            CustomEventListener::create(EVENT_RENDERER_RECREATED, [this](CustomEvent* event) { initProgram(); });
 
         _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 #endif
@@ -434,19 +435,23 @@ bool SpriteBlur::initWithTexture(Texture2D* texture, const Rect& rect)
 
 void SpriteBlur::initProgram()
 {
-    auto program      = ProgramManager::getInstance()->loadProgram(positionTextureColor_vert, "custom/example_Blur_fs",
+    auto program      = ProgramManager::getInstance()->loadProgram(positionTextureColor_vs, "custom/example_Blur_fs",
                                                                    VertexLayoutKind::Sprite);
     auto programState = new rhi::ProgramState(program);
     setProgramState(programState);
     AX_SAFE_RELEASE(programState);
 
-    auto size = getTexture()->getContentSizeInPixels();
+    auto size = getTexture()->getPixelSize();
 
     SET_UNIFORM(_programState, "resolution", size);
     SET_UNIFORM(_programState, "blurRadius", _blurRadius);
     SET_UNIFORM(_programState, "sampleNum", 7.0f);
-    SET_UNIFORM(_programState, "u_PMatrix",
-                Director::getInstance()->getMatrix(MATRIX_STACK_TYPE::MATRIX_STACK_PROJECTION));
+}
+
+void SpriteBlur::draw(const SceneRenderState& state, const Mat4& transform, uint32_t flags)
+{
+    SET_UNIFORM(_programState, "u_PMatrix", state.getViewProjectionMatrix());
+    Sprite::draw(state, transform, flags);
 }
 
 void SpriteBlur::setBlurRadius(float radius)
@@ -568,7 +573,7 @@ bool ShaderRetroEffect::init()
         char* fragSource = (char*)fragStr.c_str();
 
         auto program = ProgramManager::getInstance()->loadProgram(
-            positionTextureColor_vert, "custom/example_HorizontalColor_fs", VertexLayoutKind::Sprite);
+            positionTextureColor_vs, "custom/example_HorizontalColor_fs", VertexLayoutKind::Sprite);
         auto p                         = new rhi::ProgramState(program);
         auto director                  = Director::getInstance();
         const auto& screenSizeLocation = p->getUniformLocation("u_screenSize");
@@ -580,7 +585,7 @@ bool ShaderRetroEffect::init()
         auto s = director->getCanvasSize();
 
         _label = Label::createWithBMFont("fonts/west_england-64.fnt", "RETRO EFFECT");
-        _label->setAnchorPoint(Vec2::ANCHOR_MIDDLE);
+        _label->setAnchorPoint(Anchors::center);
         _label->setProgramState(p);
         AX_SAFE_RELEASE(p);
 
@@ -598,7 +603,7 @@ bool ShaderRetroEffect::init()
 void ShaderRetroEffect::update(float dt)
 {
     _accum += dt;
-    int letterCount = _label->getStringLength();
+    int letterCount = _label->getCharCount();
     for (int i = 0; i < letterCount; ++i)
     {
         auto sprite = _label->getLetter(i);
@@ -783,4 +788,159 @@ void ShaderMultiTexture::changeTexture(Object*)
     right->setTexture(texture);
     auto programState = _sprite->getProgramState();
     SET_TEXTURE(programState, "u_tex1", 1, right->getTexture()->getRHITexture());
+}
+
+//
+// ShaderCustomSampler
+//
+ShaderCustomSampler::ShaderCustomSampler() {}
+
+std::string ShaderCustomSampler::title() const
+{
+    return "Custom Sampler Test";
+}
+
+std::string ShaderCustomSampler::subtitle() const
+{
+    return "Left: built-in Clamp (normal) | Right: custom Wrap (repeating)";
+}
+
+bool ShaderCustomSampler::init()
+{
+    if (ShaderTestDemo::init())
+    {
+        auto s = Director::getInstance()->getCanvasSize();
+
+        // Register custom sampler with WRAP addressing for obvious visual difference.
+        // The right sprite will visibly tile/repeat the texture instead of clamping.
+        rhi::SamplerDesc wrapDesc;
+        wrapDesc.minFilter    = rhi::SamplerFilter::MIN_LINEAR;
+        wrapDesc.magFilter    = rhi::SamplerFilter::MAG_LINEAR;
+        wrapDesc.mipFilter    = rhi::SamplerFilter::MIP_DEFAULT;
+        wrapDesc.sAddressMode = rhi::SamplerAddressMode::REPEAT;
+        wrapDesc.tAddressMode = rhi::SamplerAddressMode::REPEAT;
+
+        auto samplerReg = rhi::SamplerRegistry::getInstance();
+        auto samplerId  = samplerReg->registerSampler("myCustomSampler", wrapDesc);
+
+        // Left: normal sprite (built-in LinearClamp, smooth)
+        auto left = Sprite::create("Images/grossini.png");
+        if (left)
+        {
+            left->setScale(2.0f);
+            left->setPosition(Vec2(s.width / 4, s.height / 2));
+            addChild(left);
+        }
+
+        auto leftLabel = Label::createWithTTF("Normal sprite\n(LinearClamp)", "fonts/arial.ttf", 12.0f);
+        if (leftLabel)
+        {
+            leftLabel->setPosition(Vec2(s.width / 4, s.height / 2 + 120));
+            addChild(leftLabel);
+        }
+
+        // Right: sprite with custom shader using the custom Point-like sampler
+        auto right = Sprite::create("Images/grossini.png");
+        if (right)
+        {
+            auto program = ProgramManager::getInstance()->loadProgram(
+                positionTexture_vs, "custom/test_CustomSampler_fs", VertexLayoutKind::Sprite);
+            auto programState = new rhi::ProgramState(program);
+
+            SET_TEXTURE(programState, "u_tex0", 0, right->getTexture()->getRHITexture());
+
+            right->setProgramState(programState);
+            AX_SAFE_RELEASE(programState);
+
+            right->setScale(2.0f);
+            right->setPosition(Vec2(s.width * 3 / 4, s.height / 2));
+            addChild(right);
+        }
+
+        auto rightLabel = Label::createWithTTF("Custom sampler\n(Repeat 4x4)", "fonts/arial.ttf", 12.0f);
+        if (rightLabel)
+        {
+            rightLabel->setPosition(Vec2(s.width * 3 / 4, s.height / 2 + 120));
+            addChild(rightLabel);
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+//
+// ShaderMultiCustomSampler
+//
+ShaderMultiCustomSampler::ShaderMultiCustomSampler() {}
+
+std::string ShaderMultiCustomSampler::title() const
+{
+    return "Multi Custom Sampler Test";
+}
+
+std::string ShaderMultiCustomSampler::subtitle() const
+{
+    return "Left: custom Clamp | Right: custom Wrap on separate texture bindings";
+}
+
+bool ShaderMultiCustomSampler::init()
+{
+    if (ShaderTestDemo::init())
+    {
+        auto s = Director::getInstance()->getCanvasSize();
+
+        rhi::SamplerDesc clampDesc;
+        clampDesc.minFilter    = rhi::SamplerFilter::MIN_LINEAR;
+        clampDesc.magFilter    = rhi::SamplerFilter::MAG_LINEAR;
+        clampDesc.mipFilter    = rhi::SamplerFilter::MIP_DEFAULT;
+        clampDesc.sAddressMode = rhi::SamplerAddressMode::CLAMP_TO_EDGE;
+        clampDesc.tAddressMode = rhi::SamplerAddressMode::CLAMP_TO_EDGE;
+
+        rhi::SamplerDesc wrapDesc;
+        wrapDesc.minFilter    = rhi::SamplerFilter::MIN_LINEAR;
+        wrapDesc.magFilter    = rhi::SamplerFilter::MAG_LINEAR;
+        wrapDesc.mipFilter    = rhi::SamplerFilter::MIP_DEFAULT;
+        wrapDesc.sAddressMode = rhi::SamplerAddressMode::REPEAT;
+        wrapDesc.tAddressMode = rhi::SamplerAddressMode::REPEAT;
+
+        auto samplerReg = rhi::SamplerRegistry::getInstance();
+        samplerReg->registerSampler("myClampSampler", clampDesc);
+        samplerReg->registerSampler("myWrapSampler", wrapDesc);
+
+        auto tex0 = Director::getInstance()->getTextureCache()->addImage("Images/grossini.png");
+        auto tex1 = Director::getInstance()->getTextureCache()->addImage("Images/grossinis_sister1.png");
+        if (!tex0 || !tex1)
+            return false;
+
+        auto sprite = Sprite::createWithTexture(tex0);
+        if (sprite)
+        {
+            auto program = ProgramManager::getInstance()->loadProgram(
+                positionTexture_vs, "custom/test_MultiCustomSampler_fs", VertexLayoutKind::Sprite);
+            auto programState = new rhi::ProgramState(program);
+
+            SET_TEXTURE(programState, "u_tex0", 0, tex0->getRHITexture());
+            SET_TEXTURE(programState, "u_tex1", 1, tex1->getRHITexture());
+
+            sprite->setProgramState(programState);
+            AX_SAFE_RELEASE(programState);
+
+            sprite->setScale(3.0f);
+            sprite->setPosition(Vec2(s.width / 2, s.height / 2));
+            addChild(sprite);
+        }
+
+        auto label = Label::createWithTTF("Two custom samplers\n(left clamp, right repeat)", "fonts/arial.ttf", 12.0f);
+        if (label)
+        {
+            label->setPosition(Vec2(s.width / 2, s.height / 2 + 160));
+            addChild(label);
+        }
+
+        return true;
+    }
+
+    return false;
 }

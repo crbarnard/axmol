@@ -1,16 +1,16 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated July 28, 2023. Replaces all prior versions.
+ * Last updated April 5, 2025. Replaces all prior versions.
  *
- * Copyright (c) 2013-2023, Esoteric Software LLC
+ * Copyright (c) 2013-2025, Esoteric Software LLC
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
  * conditions of Section 2 of the Spine Editor License Agreement:
  * http://esotericsoftware.com/spine-editor-license
  *
- * Otherwise, it is permitted to integrate the Spine Runtimes into software or
- * otherwise create derivative works of the Spine Runtimes (collectively,
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
  * "Products"), provided that each user of the Products must obtain their own
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
@@ -23,8 +23,8 @@
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
  * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE
- * SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #include <spine/PathConstraintSpacingTimeline.h>
@@ -41,24 +41,25 @@
 
 using namespace spine;
 
-RTTI_IMPL(PathConstraintSpacingTimeline, PathConstraintPositionTimeline)
+RTTI_IMPL(PathConstraintSpacingTimeline, ConstraintTimeline1)
 
-PathConstraintSpacingTimeline::PathConstraintSpacingTimeline(size_t frameCount, size_t bezierCount,
-															 int pathConstraintIndex) : CurveTimeline1(frameCount,
-																									   bezierCount),
-																						_pathConstraintIndex(
-																								pathConstraintIndex) {
-	PropertyId ids[] = {((PropertyId) Property_PathConstraintSpacing << 32) | pathConstraintIndex};
-	setPropertyIds(ids, 1);
+PathConstraintSpacingTimeline::PathConstraintSpacingTimeline(size_t frameCount, size_t bezierCount, int constraintIndex)
+	: ConstraintTimeline1(frameCount, bezierCount, constraintIndex, Property_PathConstraintSpacing) {
 }
 
-void PathConstraintSpacingTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents,
-										  float alpha, MixBlend blend, MixDirection direction) {
-	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
-	SP_UNUSED(direction);
+PathConstraintSpacingTimeline::~PathConstraintSpacingTimeline() {
+}
 
-	PathConstraint *constraint = skeleton._pathConstraints[_pathConstraintIndex];
-	if (constraint->_active)
-		constraint->_spacing = getAbsoluteValue(time, alpha, blend, constraint->_spacing, constraint->_data._spacing);
+void PathConstraintSpacingTimeline::apply(Skeleton &skeleton, float lastTime, float time, Array<Event *> *events, float alpha, MixFrom from, bool add,
+										  bool out, bool appliedPose) {
+	SP_UNUSED(lastTime);
+	SP_UNUSED(events);
+	SP_UNUSED(out);
+
+	PathConstraint *constraint = (PathConstraint *) skeleton._constraints[_constraintIndex];
+	if (constraint->isActive()) {
+		PathConstraintPose &pose = appliedPose ? *constraint->_appliedPose : constraint->_pose;
+		PathConstraintData &data = constraint->_data;
+		pose._spacing = getAbsoluteValue(time, alpha, from, false, pose._spacing, data._setupPose._spacing);
+	}
 }

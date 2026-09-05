@@ -163,7 +163,6 @@ list(APPEND GAME_HEADER
   Source/ActionsProgressTest/ActionsProgressTest.h
   Source/RotateWorldTest/RotateWorldTest.h
   Source/Camera3DTest/Camera3DTest.h
-  Source/TextInputTest/TextInputTest.h
   Source/Texture2dTest/Texture2dTest.h
   Source/TerrainTest/TerrainTest.h
   Source/controller.h
@@ -177,7 +176,6 @@ list(APPEND GAME_HEADER
   Source/ExtensionsTest/TableViewTest/TableViewTestScene.h
   Source/MeshRendererTest/MeshRendererTest.h
   Source/MeshRendererTest/DrawNode3D.h
-  Source/DrawNodeTest/DrawNodeTest.h
   Source/BaseTest.h
   Source/SceneTest/SceneTest.h
   Source/ReleasePoolTest/ReleasePoolTest.h
@@ -190,7 +188,6 @@ list(APPEND GAME_HEADER
   Source/UITest/CocoStudioGUITest/UIScrollViewTest/UIScrollViewTest.h
   Source/UITest/CocoStudioGUITest/CocosGUIScene.h
   Source/UITest/CocoStudioGUITest/UITabControlTest/UITabControlTest.h
-  Source/UITest/CocoStudioGUITest/UITextFieldTest/UITextFieldTest.h
   Source/UITest/CocoStudioGUITest/UITextBMFontTest/UITextBMFontTest.h
   Source/UITest/CocoStudioGUITest/UIImageViewTest/UIImageViewTest.h
   Source/UITest/CocoStudioGUITest/UISliderTest/UISliderTest.h
@@ -210,6 +207,7 @@ list(APPEND GAME_HEADER
   Source/UITest/CocoStudioGUITest/UICheckBoxTest/UICheckBoxTest.h
   Source/UITest/CocoStudioGUITest/UIFocusTest/UIFocusTest.h
   Source/UITest/CocoStudioGUITest/UITextTest/UITextTest.h
+  Source/UITest/CocoStudioGUITest/UIInputFieldTest/UIInputFieldTest.h
   Source/BillBoardTest/BillBoardTest.h
   Source/SpriteFrameCacheTest/SpriteFrameCacheTest.h
   Source/EffectsAdvancedTest/EffectsAdvancedTest.h
@@ -233,7 +231,6 @@ list(APPEND GAME_HEADER
   Source/NetworkTest/HttpClientTest/HttpClientTest.h
   Source/NetworkTest/WebSocketTest/WebSocketTest.h
   Source/OpenURLTest/OpenURLTest.h
-  Source/ConsoleTest/ConsoleTest.h
   Source/MenuTest/MenuTest.h
   Source/ZipTest/ZipTests.h
 )
@@ -266,7 +263,6 @@ list(APPEND GAME_SOURCE
   Source/ClickAndMoveTest/ClickAndMoveTest.cpp
   Source/ClippingNodeTest/ClippingNodeTest.cpp
   Source/EnvironmentTest/EnvironmentTest.cpp
-  Source/ConsoleTest/ConsoleTest.cpp
   Source/CurlTest/CurlTest.cpp
   Source/CurrentLanguageTest/CurrentLanguageTest.cpp
   Source/DataVisitorTest/DataVisitorTest.cpp
@@ -309,12 +305,10 @@ list(APPEND GAME_SOURCE
   Source/SpineTest/SpineTest.cpp
   Source/Scene3DTest/Scene3DTest.cpp
   Source/MeshRendererTest/DrawNode3D.cpp
-  Source/DrawNodeTest/DrawNodeTest.cpp
   Source/MeshRendererTest/MeshRendererTest.cpp
   Source/SpritePolygonTest/SpritePolygonTest.cpp
   Source/SpriteTest/SpriteTest.cpp
   Source/TerrainTest/TerrainTest.cpp
-  Source/TextInputTest/TextInputTest.cpp
   Source/Texture2dTest/Texture2dTest.cpp
   Source/TextureCacheTest/TextureCacheTest.cpp
   Source/TexturePackerEncryptionTest/TextureAtlasEncryptionTest.cpp
@@ -343,10 +337,10 @@ list(APPEND GAME_SOURCE
   Source/UITest/CocoStudioGUITest/UISliderTest/UISliderTest.cpp
   Source/UITest/CocoStudioGUITest/UITextAtlasTest/UITextAtlasTest.cpp
   Source/UITest/CocoStudioGUITest/UITextBMFontTest/UITextBMFontTest.cpp
-  Source/UITest/CocoStudioGUITest/UITextFieldTest/UITextFieldTest.cpp
   Source/UITest/CocoStudioGUITest/UITextTest/UITextTest.cpp
   Source/UITest/CocoStudioGUITest/UIWidgetAddNodeTest/UIWidgetAddNodeTest.cpp
   Source/UITest/CocoStudioGUITest/UITabControlTest/UITabControlTest.cpp
+  Source/UITest/CocoStudioGUITest/UIInputFieldTest/UIInputFieldTest.cpp
   Source/UITest/UITest.cpp
   Source/UserDefaultTest/UserDefaultTest.cpp
   Source/VisibleRect.cpp
@@ -356,7 +350,16 @@ list(APPEND GAME_SOURCE
   Source/ZipTest/ZipTests.cpp
 )
 
-if(AX_ENABLE_MEDIA)
+if(AX_ENABLE_EXT_SVG)
+  list(APPEND GAME_HEADER
+    Source/SVGTest/SVGTest.h
+  )
+  list(APPEND GAME_SOURCE
+    Source/SVGTest/SVGTest.cpp
+  )
+endif()
+
+if(AX_ENABLE_VIDEO)
   list(APPEND GAME_HEADER
     Source/UITest/CocoStudioGUITest/UIVideoPlayerTest/UIVideoPlayerTest.h)
   list(APPEND GAME_SOURCE
@@ -395,6 +398,10 @@ if(AX_ENABLE_EXT_IMGUI)
   list(APPEND GAME_HEADER Source/ImGuiTest/ImGuiTest.h)
   list(APPEND GAME_SOURCE Source/ImGuiTest/ImGuiTest.cpp)
 
+  list(APPEND GAME_HEADER Source/DrawNodeTest/DrawNodeTest.h)
+  list(APPEND GAME_SOURCE Source/DrawNodeTest/DrawNodeTest.cpp)
+
+  # Box2DTestBed is only works on GLFW platforms, because it requires glfw
   if((WINDOWS OR MACOSX OR LINUX OR WASM) AND(NOT WINRT))
     file(GLOB_RECURSE BOX2D_TESTBED_SOURCES Source/Box2DTestBed/*.h;Source/Box2DTestBed/*.cpp;Source/Box2DTestBed/*.c)
     list(APPEND GAME_SOURCE ${BOX2D_TESTBED_SOURCES})
@@ -452,8 +459,16 @@ target_link_libraries(${APP_NAME} ${_AX_CORE_LIB})
 
 target_include_directories(${APP_NAME} PRIVATE ${GAME_INC_DIRS})
 
+if(AX_ENABLE_EXT_SVG)
+  target_compile_definitions(${APP_NAME} PRIVATE AX_ENABLE_EXT_SVG=1)
+endif()
+
 if(AX_ENABLE_EXT_EFFEKSEER)
   target_compile_definitions(${APP_NAME} PRIVATE AX_ENABLE_EXT_EFFEKSEER=1)
+  target_link_libraries(${APP_NAME} EffekseerAxmol)
+  target_include_directories(${APP_NAME} PRIVATE
+    ${_AX_ROOT}/extensions/Effekseer
+  )
 endif()
 
 # mark app resources

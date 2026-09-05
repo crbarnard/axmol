@@ -9,15 +9,19 @@ if(BUILD_SHARED_LIBS)
   endif()
 endif()
 
-function(setup_ax_extension_config target_name)
+function(ax_setup_ext_config target_name)
   set(options DNTLINK)
-  set(oneValueArgs LINK_SCOPE)
+  set(oneValueArgs LINK_SCOPE FOLDER)
   cmake_parse_arguments(opt "${options}" "${oneValueArgs}" "" ${ARGN})
+
+  if(NOT opt_FOLDER)
+    set(opt_FOLDER "Extensions")
+  endif()
 
   target_link_libraries(${target_name} ${opt_LINK_SCOPE} ${_AX_CORE_LIB})
 
   if(BUILD_SHARED_LIBS)
-    target_compile_definitions(${target_name} PRIVATE AX_EX_DLLEXPORT INTERFACE AX_EX_DLLIMPORT)
+    target_compile_definitions(${target_name} PRIVATE AX_EXT_EXPORTS INTERFACE AX_EXT_IMPORTS)
   endif()
 
   set_target_properties(${target_name}
@@ -25,11 +29,11 @@ function(setup_ax_extension_config target_name)
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-    FOLDER "Extensions"
+    FOLDER "${opt_FOLDER}"
   )
 
   if(WINRT)
-    set_property(TARGET ${target_name} PROPERTY VS_PROJECT_IMPORT ${CMAKE_BINARY_DIR}/packages/Microsoft.Windows.CppWinRT/build/native/Microsoft.Windows.CppWinRT.props)
+    set_property(TARGET ${target_name} PROPERTY VS_PROJECT_IMPORT ${_NUGET_PACKAGE_DIR}/Microsoft.Windows.CppWinRT/build/native/Microsoft.Windows.CppWinRT.props)
   endif()
 
   if(NOT opt_DNTLINK)
@@ -93,32 +97,13 @@ if(AX_ENABLE_EXT_IMGUI)
   endif()
 endif()
 
-if(AX_ENABLE_EXT_COCOSTUDIO)
-  add_subdirectory(cocostudio)
+option(AX_ENABLE_EXT_SCENEEXT "Whether enable extension: sceneext" ON)
+if(AX_ENABLE_EXT_SCENEEXT)
+    add_subdirectory(sceneext)
+endif()
 
-  if(AX_ENABLE_EXT_SPINE)
-    target_compile_definitions(cocostudio PRIVATE AX_ENABLE_EXT_SPINE=1)
-
-    if(BUILD_SHARED_LIBS)
-      target_link_libraries(cocostudio spine particle3d)
-    else()
-      target_include_directories(cocostudio
-        PUBLIC ${CMAKE_CURRENT_LIST_DIR}/spine/runtime/include
-        PUBLIC ${CMAKE_CURRENT_LIST_DIR}/spine/src
-        PUBLIC ${CMAKE_CURRENT_LIST_DIR}/Particle3D/src
-      )
-    endif()
-  endif()
-
-  if(AX_ENABLE_EXT_DRAGONBONES)
-    target_compile_definitions(cocostudio PRIVATE AX_ENABLE_EXT_DRAGONBONES=1)
-
-    if(BUILD_SHARED_LIBS)
-      target_link_libraries(cocostudio DragonBones)
-    else()
-      target_include_directories(cocostudio PUBLIC ${CMAKE_CURRENT_LIST_DIR}/DragonBones/src)
-    endif()
-  endif()
+if(AX_ENABLE_EXT_SCENEIO AND AX_ENABLE_EXT_SCENEEXT)
+  add_subdirectory(sceneio)
 endif()
 
 if(AX_ENABLE_EXT_LIVE2D)
@@ -137,6 +122,10 @@ if(AX_ENABLE_EXT_JSONDEFAULT)
   add_subdirectory(JSONDefault)
 endif()
 
+if(AX_ENABLE_EXT_SVG)
+  add_subdirectory(svg)
+endif()
+
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/local.cmake")
     include("${CMAKE_CURRENT_LIST_DIR}/local.cmake")
 endif()
@@ -145,5 +134,3 @@ endif()
 if(BUILD_SHARED_LIBS AND UNIX AND NOT ANDROID)
   set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
 endif()
-
-message(STATUS "Enabled ${_AX_CORE_LIB} extensions:${_AX_EXTENSION_LIBS}")

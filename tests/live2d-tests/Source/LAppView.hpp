@@ -25,12 +25,12 @@ public:
     virtual void onEnter();
     virtual void onExit();
 
-    virtual void draw(ax::Renderer* renderer, const ax::Mat4& transform, uint32_t flags);
+    virtual void draw(const ax::SceneRenderState& renderer, const ax::Mat4& transform, uint32_t flags);
     void onDraw(const ax::Mat4& transform, uint32_t flags);
 
-    void onTouchesBegan(const std::vector<ax::Touch*>& touches, ax::Event* event);
-    void onTouchesMoved(const std::vector<ax::Touch*>& touches, ax::Event* event);
-    void onTouchesEnded(const std::vector<ax::Touch*>& touches, ax::Event* event);
+    bool onPointerDown(ax::PointerEvent* event);
+    void onPointerMove(ax::PointerEvent* event);
+    void onPointerUp(ax::PointerEvent* event);
 
     void updateViewMatrix(float dx, float dy, float cx, float cy, float scale);
     float transformViewX(float deviceX);
@@ -47,6 +47,6 @@ private:
     TouchManager* touchMgr;
     Csm::CubismMatrix44* deviceToScreen;
     Csm::CubismViewMatrix* viewMatrix;
-    Csm::Rendering::CubismCommandBuffer_Cocos2dx _commandBuffer;
+    Csm::Rendering::CubismCommandBuffer_Axmol _commandBuffer;
     DrawNode* _debugRects;
 };

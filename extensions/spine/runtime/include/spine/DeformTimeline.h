@@ -1,16 +1,16 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated July 28, 2023. Replaces all prior versions.
+ * Last updated April 5, 2025. Replaces all prior versions.
  *
- * Copyright (c) 2013-2023, Esoteric Software LLC
+ * Copyright (c) 2013-2025, Esoteric Software LLC
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
  * conditions of Section 2 of the Spine Editor License Agreement:
  * http://esotericsoftware.com/spine-editor-license
  *
- * Otherwise, it is permitted to integrate the Spine Runtimes into software or
- * otherwise create derivative works of the Spine Runtimes (collectively,
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
  * "Products"), provided that each user of the Products must obtain their own
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
@@ -23,55 +23,62 @@
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
  * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE
- * SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #ifndef Spine_DeformTimeline_h
 #define Spine_DeformTimeline_h
 
-#include <spine/CurveTimeline.h>
+#include <spine/SlotCurveTimeline.h>
 
 namespace spine {
 	class VertexAttachment;
 
-	class SP_API DeformTimeline : public CurveTimeline {
+	/// Changes a slot's deform to deform a VertexAttachment.
+	class SP_API DeformTimeline : public SlotCurveTimeline {
 		friend class SkeletonBinary;
 
 		friend class SkeletonJson;
 
-	RTTI_DECL
+		RTTI_DECL
 
 	public:
-		explicit DeformTimeline(size_t frameCount, size_t bezierCount, int slotIndex, VertexAttachment *attachment);
+		explicit DeformTimeline(size_t frameCount, size_t bezierCount, int slotIndex, VertexAttachment &attachment);
 
-		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
-			  MixDirection direction);
+		virtual void apply(Skeleton &skeleton, float lastTime, float time, Array<Event *> *events, float alpha, MixFrom from, bool add, bool out,
+						   bool appliedPose) override;
 
-		/// Sets the time and value of the specified keyframe.
-		void setFrame(int frameIndex, float time, Vector<float> &vertices);
+		/// Sets the time and vertices for the specified frame.
+		void setFrame(int frameIndex, float time, Array<float> &vertices);
 
-		Vector <Vector<float>> &getVertices();
+		/// The vertices for each frame.
+		Array<Array<float>> &getVertices();
 
-		VertexAttachment *getAttachment();
+		/// The attachment whose vertices will be deformed.
+		VertexAttachment &getAttachment();
 
-		void setAttachment(VertexAttachment *inValue);
+		void setAttachment(VertexAttachment &inValue);
 
-		virtual void
-		setBezier(size_t bezier, size_t frame, float value, float time1, float value1, float cx1, float cy1, float cx2,
-				  float cy2, float time2, float value2);
+		virtual void setBezier(size_t bezier, size_t frame, float value, float time1, float value1, float cx1, float cy1, float cx2, float cy2,
+							   float time2, float value2) override;
 
 		float getCurvePercent(float time, int frame);
 
-		int getSlotIndex() { return _slotIndex; }
-
-		void setSlotIndex(int inValue) { _slotIndex = inValue; }
+		size_t getFrameCount() {
+			return _frames.size();
+		}
 
 	protected:
-		int _slotIndex;
+		void _apply(Slot &slot, SlotPose &pose, float time, float alpha, MixFrom from, bool add) override;
 
-		Vector <Vector<float>> _vertices;
+	private:
+		void applyBeforeFirst(Slot &slot, bool appliedPose, float alpha, MixFrom from);
+		void applyToPose(SlotPose &pose, Array<float> &v1, Array<float> *v2, float percent, size_t vertexCount, float alpha, MixFrom from, bool add);
+		void applyToSlot(Slot &slot, bool appliedPose, Array<float> &v1, Array<float> *v2, float percent, size_t vertexCount, float alpha,
+						 MixFrom from, bool add);
+
+		Array<Array<float>> _vertices;
 
 		VertexAttachment *_attachment;
 	};

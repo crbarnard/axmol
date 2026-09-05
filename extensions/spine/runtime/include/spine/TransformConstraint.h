@@ -1,16 +1,16 @@
 /******************************************************************************
  * Spine Runtimes License Agreement
- * Last updated July 28, 2023. Replaces all prior versions.
+ * Last updated April 5, 2025. Replaces all prior versions.
  *
- * Copyright (c) 2013-2023, Esoteric Software LLC
+ * Copyright (c) 2013-2025, Esoteric Software LLC
  *
  * Integration of the Spine Runtimes into software or otherwise creating
  * derivative works of the Spine Runtimes is permitted under the terms and
  * conditions of Section 2 of the Spine Editor License Agreement:
  * http://esotericsoftware.com/spine-editor-license
  *
- * Otherwise, it is permitted to integrate the Spine Runtimes into software or
- * otherwise create derivative works of the Spine Runtimes (collectively,
+ * Otherwise, it is permitted to integrate the Spine Runtimes into software
+ * or otherwise create derivative works of the Spine Runtimes (collectively,
  * "Products"), provided that each user of the Products must obtain their own
  * Spine Editor license and redistribution of the Products in any form must
  * include this license and copyright notice.
@@ -23,90 +23,63 @@
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
  * BUSINESS INTERRUPTION, OR LOSS OF USE, DATA, OR PROFITS) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE
- * SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #ifndef Spine_TransformConstraint_h
 #define Spine_TransformConstraint_h
 
-#include <spine/ConstraintData.h>
-
-#include <spine/Vector.h>
+#include <spine/Constraint.h>
+#include <spine/TransformConstraintData.h>
+#include <spine/TransformConstraintPose.h>
+#include <spine/Array.h>
 
 namespace spine {
-	class TransformConstraintData;
-
 	class Skeleton;
-
 	class Bone;
+	class BonePose;
 
-	class SP_API TransformConstraint : public Updatable {
+	// Non-exported base class that inherits from the template
+	class TransformConstraintBase : public ConstraintGeneric<TransformConstraint, TransformConstraintData, TransformConstraintPose> {
+	public:
+		TransformConstraintBase(TransformConstraintData &data)
+			: ConstraintGeneric<TransformConstraint, TransformConstraintData, TransformConstraintPose>(data) {
+		}
+	};
+
+	/// Adjusts the world transform of the constrained bones to match that of the source bone.
+	///
+	/// See https://esotericsoftware.com/spine-transform-constraints Transform constraints in the Spine User Guide.
+	class SP_API TransformConstraint : public TransformConstraintBase {
 		friend class Skeleton;
-
 		friend class TransformConstraintTimeline;
 
-	RTTI_DECL
-
 	public:
+		RTTI_DECL
+
 		TransformConstraint(TransformConstraintData &data, Skeleton &skeleton);
 
-		virtual void update(Physics physics);
+		virtual TransformConstraint &copy(Skeleton &skeleton);
 
-		virtual int getOrder();
+		/// Applies the constraint to the constrained bones.
+		void update(Skeleton &skeleton, Physics physics) override;
 
-		TransformConstraintData &getData();
+		void sort(Skeleton &skeleton) override;
 
-		Vector<Bone *> &getBones();
+		bool isSourceActive() override;
 
-		Bone *getTarget();
+		/// The bones that will be modified by this transform constraint.
+		Array<BonePose *> &getBones();
 
-		void setTarget(Bone *inValue);
+		/// The bone whose world transform will be matched by the constrained bones.
+		Bone &getSource();
 
-		float getMixRotate();
-
-		void setMixRotate(float inValue);
-
-		float getMixX();
-
-		void setMixX(float inValue);
-
-		float getMixY();
-
-		void setMixY(float inValue);
-
-		float getMixScaleX();
-
-		void setMixScaleX(float inValue);
-
-		float getMixScaleY();
-
-		void setMixScaleY(float inValue);
-
-		float getMixShearY();
-
-		void setMixShearY(float inValue);
-
-		bool isActive();
-
-		void setActive(bool inValue);
-
-        void setToSetupPose();
+		void setSource(Bone &source);
 
 	private:
-		TransformConstraintData &_data;
-		Vector<Bone *> _bones;
-		Bone *_target;
-		float _mixRotate, _mixX, _mixY, _mixScaleX, _mixScaleY, _mixShearY;
-		bool _active;
-
-		void applyAbsoluteWorld();
-
-		void applyRelativeWorld();
-
-		void applyAbsoluteLocal();
-
-		void applyRelativeLocal();
+		Array<BonePose *> _bones;
+		Bone *_source;
 	};
 }
 

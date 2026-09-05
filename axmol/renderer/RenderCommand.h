@@ -27,7 +27,7 @@
 
 #include "axmol/platform/PlatformMacros.h"
 #include "axmol/base/Types.h"
-#include "axmol/renderer/PipelineDesc.h"
+#include "axmol/rhi/PipelineDesc.h"
 
 /**
  * @addtogroup renderer
@@ -36,6 +36,8 @@
 
 namespace ax
 {
+
+struct SceneViewData;
 
 /** Base class of the `RenderCommand` hierarchy.
 *
@@ -78,7 +80,7 @@ public:
      @param modelViewTransform Modelview matrix when submitting the render command.
      @param flags Flag used to indicate whether the command should be draw at 3D mode or not.
      */
-    void init(float globalZOrder, const Mat4& modelViewTransform, unsigned int flags);
+    void init(float globalZOrder, const Mat4& modelViewTransform, unsigned int flags, const SceneViewData& view);
 
     /** Get global Z order. */
     float getGlobalOrder() const { return _globalOrder; }
@@ -103,6 +105,8 @@ public:
     void set3D(bool value) { _is3D = value; }
     /**Get the depth by current model view matrix.*/
     float getDepth() const { return _depth; }
+    /**Get the view-projection matrix captured when the command was submitted.*/
+    const Mat4& getViewProjectionMatrix() const { return _viewProjection; }
     /**Whether the command should be rendered in wireframe mode.*/
     bool isWireframe() const { return _isWireframe; }
     /**Set wireframe render mode for this command.*/
@@ -123,7 +127,7 @@ public:
 
 private:
     /// Can use the result to change the descriptor content.
-    inline const PipelineDesc& getPipelineDesc() const { return _pipelineDesc; }
+    inline const rhi::PipelineDesc& getPipelineDesc() const { return _pipelineDesc; }
 #pragma endregion
 protected:
     /**Constructor.*/
@@ -154,6 +158,9 @@ protected:
     /** Depth from the model view matrix. */
     float _depth = 0.f;
 
+    /** View-projection matrix from the scene render state when this command was submitted. */
+    Mat4 _viewProjection = Mat4::identity;
+
     /** Polygon render mode set to LINE, which represents wireframe mode. */
     bool _isWireframe = false;
 
@@ -161,7 +168,7 @@ protected:
 
     Mat4 _mv;
 
-    PipelineDesc _pipelineDesc;
+    rhi::PipelineDesc _pipelineDesc;
 };
 
 }  // namespace ax
